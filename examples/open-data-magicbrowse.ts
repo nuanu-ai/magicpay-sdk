@@ -11,11 +11,13 @@ import {
   type ResolvedObservedOpenDataTarget,
   type TargetDescriptor,
 } from '@mercuryo-ai/magicpay-sdk/magicbrowse';
+import type { MagicBrowseSemanticMatcherModel } from '@mercuryo-ai/magicbrowse';
 
 export interface OpenDataMagicBrowseParams {
   gateway: MagicPayGatewayConfig;
   targets: Record<string, TargetDescriptor>;
   pageUrl: string;
+  semanticMatcherModel: MagicBrowseSemanticMatcherModel;
   protectedForms?: ReadonlyArray<Pick<ProtectedFillForm, 'fields'>>;
   targetRefs?: readonly string[];
   snapshot?: ObservedOpenDataSnapshot;
@@ -125,6 +127,7 @@ export async function resolveOpenDataForObservedTargets(
   const resolved = await resolveObservedOpenDataTargets({
     targets: params.targets,
     targetRefs,
+    matcherModel: params.semanticMatcherModel,
     ...(params.protectedForms ? { protectedForms: params.protectedForms } : {}),
     snapshot,
     page: { url: params.pageUrl },

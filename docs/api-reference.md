@@ -640,7 +640,7 @@ and do not carry MagicPay product or vault fields.
 | Helper | Purpose |
 | --- | --- |
 | `listObservedOpenDataEligibleTargetRefs({ targets, protectedForms })` | Return target refs that are candidates for open-data matching (excludes protected-form fields) |
-| `resolveObservedOpenDataTargets({ targets, targetRefs, protectedForms?, snapshot?, page? })` | Resolve a batch of observed targets against a session-local open-data snapshot; returns per-target `matched` / `ambiguous` / `no_match` |
+| `resolveObservedOpenDataTargets({ targets, targetRefs, matcherModel, protectedForms?, snapshot?, page? })` | Resolve a batch of observed targets against a session-local open-data snapshot through the MagicBrowse semantic matcher; returns per-target `matched` / `ambiguous` / `no_match` |
 
 ```ts
 function listObservedOpenDataEligibleTargetRefs(params: {
@@ -658,6 +658,7 @@ function resolveObservedOpenDataTargets(
 interface ResolveObservedOpenDataTargetsParams {
   targets: Record<string, TargetDescriptor>;
   targetRefs: ReadonlyArray<string>;
+  matcherModel?: OpenDataTargetMatcherModel;
   protectedForms?: ReadonlyArray<Pick<ProtectedFillForm, 'fields'>>;
   snapshot?: ObservedOpenDataSnapshot;
   page?: { url?: string };
@@ -685,8 +686,10 @@ MagicBrowse bridge for that second step:
    non-secret values.
 2. Use `listObservedOpenDataEligibleTargetRefs(...)` to exclude protected
    form fields, password/card inputs, stale targets, and non-fillable targets.
-3. Call `resolveObservedOpenDataTargets(...)` to get one terminal decision per
-   target: `matched`, `ambiguous`, or `no_match`.
+3. Call `resolveObservedOpenDataTargets(...)` with an injected MagicBrowse
+   semantic matcher model to get one terminal decision per target: `matched`,
+   `ambiguous`, or `no_match`. Without a matcher model, the helper fails closed
+   with `matcher_unavailable`.
 4. Fill only `matched` results through your browser runtime. Handle
    `ambiguous` by asking the user or narrowing the candidate set; handle
    `no_match` by leaving the field for another strategy.
@@ -718,10 +721,14 @@ Failure kinds for `buildResolveInput(...)` are listed in
 
 Typical end-to-end flow for a single protected form:
 
+`semanticMatcherModel` must be a MagicBrowse semantic matcher backed by the
+gateway `xfast` model. It receives DOM descriptors and schema metadata only,
+not protected values.
+
 ```ts
 import {
   fillProtectedGroup,
-  inferProtectedFillSubjects,
+  matchProtectedFillSubjects,
   match,
   observe,
   type MagicBrowseMatchReadyGroupResult,
@@ -737,7 +744,10 @@ import {
 
 const observation = await observe({ sessionId: magicBrowseSessionId });
 const targets = observation.orchestration?.fillableTargets?.descriptors ?? [];
-const [fillableForm] = inferProtectedFillSubjects(targets);
+const [fillableForm] = await matchProtectedFillSubjects({
+  targets,
+  model: semanticMatcherModel,
+});
 const candidates = buildObservedFormCandidateItems(fillableForm, vaultCatalog);
 const selected = selectObservedFormCandidateItem(candidates, itemRef);
 const matchCandidates = buildObservedFormMatchCandidates({

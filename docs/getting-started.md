@@ -138,6 +138,7 @@ const targetRefs = listObservedOpenDataEligibleTargetRefs({
 const openData = await resolveObservedOpenDataTargets({
   targets: observedTargetsByRef,
   targetRefs,
+  matcherModel: semanticMatcherModel,
   protectedForms: observedProtectedForms,
   snapshot,
   page: { url: 'https://airline.example.com/checkout' },

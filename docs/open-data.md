@@ -90,11 +90,17 @@ const targetRefs = listObservedOpenDataEligibleTargetRefs({
 const { results } = await resolveObservedOpenDataTargets({
   targets: observedTargetsByRef,
   targetRefs,
+  matcherModel: semanticMatcherModel,
   protectedForms: observedProtectedForms,
   snapshot,
   page: { url: 'https://airline.example.com/checkout' },
 });
 ```
+
+`semanticMatcherModel` is the MagicBrowse LLM-first semantic matcher backed by
+the gateway `xfast` model. It receives safe target descriptors and candidate
+metadata, but not raw protected values. If no matcher model is provided, or the
+matcher is unavailable or uncertain, matching fails closed.
 
 `listObservedOpenDataEligibleTargetRefs(...)` filters out targets that should
 not receive open data:

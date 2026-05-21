@@ -1,8 +1,9 @@
 import {
   fillProtectedGroup,
-  inferProtectedFillSubjects,
   match,
+  matchProtectedFillSubjects,
   observe,
+  type MagicBrowseSemanticMatcherModel,
   type MagicBrowseMatchReadyGroupResult,
   type FillProtectedGroupInput,
 } from '@mercuryo-ai/magicbrowse';
@@ -34,6 +35,7 @@ export interface MagicBrowseBridgeParams {
   sessionId: string;
   pageUrl: string;
   merchantName: string;
+  semanticMatcherModel: MagicBrowseSemanticMatcherModel;
   itemRef?: string;
 }
 
@@ -65,7 +67,11 @@ export async function completeObservedFormWithMagicPay(params: MagicBrowseBridge
     ...(params.magicBrowseSessionId ? { sessionId: params.magicBrowseSessionId } : {}),
   });
   const targetDescriptors = observation.orchestration?.fillableTargets?.descriptors ?? [];
-  const observedForms = inferProtectedFillSubjects(targetDescriptors);
+  const observedForms = await matchProtectedFillSubjects({
+    targets: targetDescriptors,
+    model: params.semanticMatcherModel,
+    page: { url: params.pageUrl },
+  });
   const fillableForm =
     observedForms.find((candidate) => candidate.purpose === 'login') ?? observedForms[0] ?? null;
   if (!fillableForm) {

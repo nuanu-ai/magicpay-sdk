@@ -87,9 +87,9 @@ The helpers cover:
   [Security Model](./security-model.md) for the explicit boundary;
 - matching observed open-data targets against a session-local snapshot
   (`listObservedOpenDataEligibleTargetRefs`,
-  `resolveObservedOpenDataTargets`). These helpers decide which non-protected
-  public value fits which observed target; your browser runtime still owns the
-  actual fill step.
+  `resolveObservedOpenDataTargets`). These helpers require an injected
+  MagicBrowse semantic matcher model backed by gateway `xfast`; your browser
+  runtime still owns the actual fill step.
 
 The happy-path composes like this:
 
