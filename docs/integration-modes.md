@@ -13,6 +13,8 @@ MagicPay SDK has one primary entry and two optional subpaths.
 The standard flow is:
 
 - `profile.facts()` for open reusable data;
+- `profile.saveFacts(...)` for explicit chat-provided open facts the user
+  chooses to save;
 - `data.resolve(...)` plus `data.waitForResult(...)` for protected or
   mixed-value field resolution;
 - `actions.run(...)` plus `actions.waitForResult(...)` for protected actions.
@@ -83,7 +85,8 @@ The helpers cover:
 - converting a values artifact into protected-fill input
   (`prepareProtectedFill`) — "protected" here means the values flow
   into the browser without passing through the LLM prompt, **not**
-  that an untrusted runtime is made safe; see
+  that an untrusted runtime is made safe or that user-pasted chat secrets can
+  be protected retroactively; see
   [Security Model](./security-model.md) for the explicit boundary;
 - matching observed open-data targets against a session-local snapshot
   (`listObservedOpenDataEligibleTargetRefs`,

@@ -9,6 +9,12 @@ values out of the LLM prompt that drives the surrounding agent or
 application**. Everything else in this document either reinforces that
 goal or marks where the design stops.
 
+That boundary only works when the user chooses the MagicPay request path.
+If the user voluntarily types a password, OTP, card value, private key, or
+other secret into chat, that value has already entered the model-visible
+conversation. MagicPay cannot undo or protect data after the user has placed
+it in model context; it can only provide a safer path the user may choose.
+
 ## What "Protected" Means Here
 
 Across this SDK and the wider toolchain — `prepareProtectedFill`,
@@ -26,6 +32,10 @@ It does **not** mean "the runtime environment is trusted", "the value
 cannot be exfiltrated by a compromised host", or "the call is resistant
 to attackers with code execution on the caller's machine". Those are
 orthogonal problems that this SDK alone does not try to solve.
+
+It also does not mean MagicPay protects secrets that the user already pasted
+into the surrounding agent chat. The protected path is an alternative to that
+chat-visible route, not a retroactive scrubber.
 
 ## Protects Against
 
@@ -87,6 +97,10 @@ provide them at a different layer.
   process is compromised — malicious packages, RCE in a hosted sandbox,
   a hostile MCP server — the value is exposed there. MagicPay narrows the
   surface (the LLM does not see it); it does not remove it.
+- **User-provided secrets in model context.** MagicPay does not stop a user
+  from sending sensitive data directly to an agent chat. Once that happens,
+  the data is part of the model-visible transcript even if a safer MagicPay
+  request path was available.
 - **Screenshots, page recordings, or DOM capture taken after fill.** If
   the surrounding runtime takes a screenshot of a page where a protected
   value was just rendered (visible card number, etc.) and that screenshot
@@ -127,6 +141,14 @@ provide them at a different layer.
 - Do not print, log, summarise, or echo protected values from your own
   code. The SDK will not stop you from doing so — it only promises not
   to do it itself.
+- Prefer the MagicPay cabinet/request path for protected values. Chat entry
+  can be convenient for reusable open profile facts, but it is model-visible;
+  passwords, OTPs, CVV, private keys, card values, and similar secrets should
+  stay on the MagicPay path.
+- Do not use value-shape heuristics to decide that a reusable open fact is a
+  protected secret. Contextual facts such as password manager names or
+  key-rotation policies can be open facts even when their wording resembles a
+  protected domain.
 - Do not invent new "trust" by aggregating `profile.facts()` and
   protected values in the prompt. The value of the protected path is
   exactly that the model did not see the value.

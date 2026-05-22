@@ -185,11 +185,17 @@ Rules of thumb:
 | Method | Purpose |
 | --- | --- |
 | `facts(options?)` | Read profile data (name, email, etc.) without requiring approval |
+| `saveFacts(facts, options?)` | Partially save explicit reusable open profile facts |
 
 ### Signatures
 
 ```ts
 profile.facts(
+  options?: MagicPayClientRequestOptions
+): Promise<MagicPayProfileFacts>;
+
+profile.saveFacts(
+  facts: Record<string, string>,
   options?: MagicPayClientRequestOptions
 ): Promise<MagicPayProfileFacts>;
 
@@ -205,6 +211,19 @@ which current input. Per-target matching on a live observed page is a
 browser-runtime concern above this SDK, and that layer should return one
 terminal decision per target (`matched`, `ambiguous`, or `no_match`)
 rather than matching raw `profile.facts()` output in your own code.
+
+`client.profile.saveFacts(...)` calls `PATCH /profile/facts` and updates only
+the supplied explicit facts. The profile key space is flexible: use it for
+reusable open facts the user has chosen to provide, such as name keys, email,
+phone, country, nationality, address-like fields, preferences, or other
+non-protected task facts. It is not a vault-write path for passwords, OTPs,
+CVV, private keys, document numbers, or payment-card values. After saving
+chat-provided open facts, run a fresh open-data resolution step rather than
+filling browser fields directly from the prompt.
+Do not build value-shape secret heuristics on top of this method: contextual
+facts such as password manager names, card preference labels, or key-rotation
+policies can be valid open profile facts even though their wording resembles
+protected domains.
 
 ## `client.data`
 
@@ -469,7 +488,7 @@ interface MagicPayWaitForResultOptions extends MagicPayClientRequestOptions {
 | Option | Meaning | Default |
 | --- | --- | --- |
 | `signal` | Abort signal for caller-driven cancellation. | — |
-| `timeoutMs` | Maximum local waiting window before `waitForResult(...)` returns `{ ok: false, reason: 'timeout' }`. | `180_000` (180s) |
+| `timeoutMs` | Maximum local waiting window before `waitForResult(...)` returns `{ ok: false, reason: 'timeout' }`. | `300_000` (300s) |
 | `intervalMs` | Poll interval used by `waitForResult(...)`. | `5_000` (5s) |
 
 `timeout` is local to the SDK — the underlying request may still be live

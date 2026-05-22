@@ -7,7 +7,7 @@ payment cards, and wallets, plus a **request flow** your code uses to read
 values from that vault and run protected actions — without the actual
 values ever entering the LLM prompt that orchestrates the work.
 
-The main client methods are `profile.facts()`,
+The main client methods are `profile.facts()`, `profile.saveFacts(...)`,
 `data.resolve(...)` / `data.waitForResult(...)`,
 `actions.run(...)` / `actions.waitForResult(...)`, and
 `choice.request(...)` / `choice.waitForResult(...)`. The generic
@@ -184,6 +184,11 @@ Treat `result.artifact.values` as short-lived handoff material. Forward it
 directly to the trusted browser or provider boundary you own; do not log it,
 print it, or put it back into an LLM prompt.
 
+MagicPay keeps protected values out of model context only when the user and
+runtime choose the MagicPay request path. If a user voluntarily types a secret
+into chat, that value is already model-visible; MagicPay cannot make that
+chat-provided secret protected retroactively.
+
 `session.type` is the billing classification of the workflow
 (`payment` / `subscription` / `cancellation`); the field-level schema
 (`login.basic`, `identity.basic`, `payment_card.provider`, …) is
@@ -193,7 +198,9 @@ and an optional `saveHint`.
 The flow is always the same shape:
 
 1. create (or reuse) a session;
-2. call `profile.facts()` when open reusable data is enough, or
+2. call `profile.facts()` when open reusable data is enough,
+   `profile.saveFacts(...)` when the user explicitly wants to save reusable
+   open facts from chat, or
    `data.resolve(...)` → `data.waitForResult(...)` for protected field
    values, or `actions.run(...)` → `actions.waitForResult(...)` for protected
    actions, or `choice.request(...)` → `choice.waitForResult(...)` when the

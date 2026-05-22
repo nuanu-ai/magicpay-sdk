@@ -99,6 +99,19 @@ console.log(facts);
 Think of `profile.facts()` as instant access to public user data (name, email,
 locale) that MagicPay can provide without requiring approval.
 
+If the user explicitly gives a reusable open fact in chat and agrees that it
+should be saved for future use, write only that partial set:
+
+```ts
+await client.profile.saveFacts({
+  family_name: 'Ivanov',
+});
+```
+
+Then read or resolve from a fresh profile snapshot. Do not fill a browser form
+directly from chat text; keep the flow as save profile facts, resolve fields,
+then fill only matched targets.
+
 `profile.facts()` is the broad read model for reusable open data. It is not a
 page-matching helper for live browser targets. If your runtime is already
 driving a browser and has observed target refs on the current page,

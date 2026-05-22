@@ -120,9 +120,13 @@ fixed on the server.
 
 ### profile fact
 
-Public user data (name, email, locale) that MagicPay can return without
-requiring approval. Read with `client.profile.facts()`. This is the broad
-open-data read model, not a target-by-target browser matching API.
+Reusable open user-provided data that MagicPay can return without requiring
+approval, for example name, email, locale, preferences, or task-specific facts.
+Read with `client.profile.facts()` and partially update explicit
+user-provided facts with `client.profile.saveFacts(...)`. The key space is
+flexible; conventional name keys include `given_name`, `family_name`,
+`middle_name`, and `full_name`. This is the broad open-data read model, not a
+target-by-target browser matching API.
 
 ### open-data matching
 

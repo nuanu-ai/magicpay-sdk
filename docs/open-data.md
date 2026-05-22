@@ -6,6 +6,11 @@ ordinary, non-protected inputs such as name, email, phone, or date of birth.
 Open data is different from protected data:
 
 - `profile.facts()` returns reusable public facts without user approval.
+- `profile.saveFacts({ ... })` saves explicitly provided reusable public facts.
+  The key space is flexible; use conventional keys for known web forms and
+  task-specific keys for other non-protected open facts.
+  Do not reject a fact only because its key or value contains words that also
+  appear in protected domains; classify by the actual fact meaning.
 - `data.resolve(...)` returns approved protected values such as passwords,
   payment cards, identity documents, or wallet values.
 - Open-data matching decides which public fact belongs to which observed
@@ -25,6 +30,8 @@ Use open-data matching when all of these are true:
 
 Do not use this flow for passwords, card numbers, CVV, wallet keys, or document
 numbers. Use `data.resolve(...)` and the protected-fill bridge for those.
+If a user types such secrets into chat, they have chosen a model-visible path;
+MagicPay cannot make already-chat-provided secrets protected after the fact.
 
 ## Runtime Shape
 
@@ -39,6 +46,12 @@ The browser-runtime layer owns four steps:
 The SDK does not fill the browser in this flow. It returns a decision and an
 open value. Your runtime decides whether to type it, ask the user, or leave the
 field for another strategy.
+
+If the agent learns a reusable open fact directly from the user in chat, first
+save it with `client.profile.saveFacts(...)`, then read or resolve against a
+fresh profile snapshot. Do not fill a live browser form directly from the chat
+prompt; keep the browser path as `save -> profile facts -> resolve-fields ->
+fill matched`.
 
 ## Build A Snapshot
 

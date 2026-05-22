@@ -25,7 +25,7 @@ they cannot return these reasons directly.
 | `expired` | The server-side request TTL elapsed before the user approved or denied. | Create a fresh request if the step still matters. |
 | `failed` | MagicPay or a downstream executor returned a terminal failure. Check `errorCode` on the returned result for a specific code. | Inspect `errorCode`, logs, and the surrounding task state before retrying. |
 | `canceled` | The caller aborted (`signal`), the session stopped (the `session_stop` path below), or the request was canceled server-side. | Stop the current flow unless your application intentionally resumes it. |
-| `timeout` | The local wait window (`timeoutMs`, default 180s) elapsed before the server finished. | The server-side request may still be alive — resume later by calling `waitForResult(...)` with the same `requestId`. |
+| `timeout` | The local wait window (`timeoutMs`, default 300s) elapsed before the server finished. | The server-side request may still be alive — resume later by calling `waitForResult(...)` with the same `requestId`. |
 
 ### `timeout` vs `expired`
 

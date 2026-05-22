@@ -5,7 +5,9 @@ trusted Node or TypeScript runtime.
 
 The standard runtime flow is:
 
-1. read `profile.facts()` when open reusable data is enough;
+1. read `profile.facts()` when open reusable data is enough, and use
+   `profile.saveFacts(...)` only for explicit reusable open facts the user
+   chooses to save;
 2. call `data.resolve(...)`, then `data.waitForResult(...)`, when the runtime
    needs protected or mixed-value form data;
 3. call `actions.run(...)`, then `actions.waitForResult(...)`, when the
