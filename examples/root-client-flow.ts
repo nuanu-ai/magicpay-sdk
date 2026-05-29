@@ -1,7 +1,8 @@
 import {
   createMagicPayClient,
   type MagicPayGatewayConfig,
-  type MagicPayRequestedField,
+  type MagicPayMemoryRequestKind,
+  type MagicPayMemoryRequestedField,
 } from '@mercuryo-ai/magicpay-sdk';
 
 export interface RootClientBridgeInput {
@@ -10,18 +11,16 @@ export interface RootClientBridgeInput {
   scopeRef?: string;
 }
 
-export interface RootClientFormStep {
+export interface RootClientMemoryStep {
+  kind?: MagicPayMemoryRequestKind;
   url: string;
   merchantName: string;
-  fields: MagicPayRequestedField[];
+  fields: MagicPayMemoryRequestedField[];
   pageTitle?: string;
   formPurpose?: string;
   itemRef?: string;
-  saveHint?: {
-    category: string;
-    displayName: string;
-    schemaRef?: string;
-  };
+  fieldRef?: string;
+  targetRef?: string;
   bridge?: RootClientBridgeInput;
 }
 
@@ -42,7 +41,7 @@ export interface RootClientActionStep {
 export interface RootClientFlowParams {
   gateway: MagicPayGatewayConfig;
   sessionId: string;
-  form: RootClientFormStep;
+  memory: RootClientMemoryStep;
   action?: RootClientActionStep;
 }
 
@@ -67,35 +66,32 @@ export async function runRootClientFlow(params: RootClientFlowParams) {
     gateway: params.gateway,
   });
 
-  const facts = await client.profile.facts();
-  const formBridge = toBridgeInput(params.form.bridge);
+  const memoryBridge = toBridgeInput(params.memory.bridge);
 
-  const dataHandle = await client.data.resolve(params.sessionId, {
-    clientRequestId: buildExampleRequestId('magicpay-data'),
-    fields: params.form.fields,
+  const memoryHandle = await client.memory.createRequest(params.sessionId, {
+    clientRequestId: buildExampleRequestId('magicpay-memory'),
+    kind: params.memory.kind ?? 'memory.provide_missing',
+    fields: params.memory.fields,
+    ...(params.memory.itemRef ? { itemRef: params.memory.itemRef } : {}),
+    ...(params.memory.fieldRef ? { fieldRef: params.memory.fieldRef } : {}),
+    ...(params.memory.targetRef ? { targetRef: params.memory.targetRef } : {}),
     context: {
-      url: params.form.url,
-      ...(params.form.pageTitle ? { pageTitle: params.form.pageTitle } : {}),
-      ...(params.form.formPurpose ? { formPurpose: params.form.formPurpose } : {}),
-      merchantName: params.form.merchantName,
+      url: params.memory.url,
+      ...(params.memory.pageTitle ? { pageTitle: params.memory.pageTitle } : {}),
+      ...(params.memory.formPurpose ? { formPurpose: params.memory.formPurpose } : {}),
+      merchantName: params.memory.merchantName,
     },
-    ...(params.form.itemRef ? { targetItemRef: params.form.itemRef } : {}),
-    ...(params.form.saveHint ? { saveHint: params.form.saveHint } : {}),
-    ...(formBridge ? { bridge: formBridge } : {}),
+    ...(memoryBridge ? { bridge: memoryBridge } : {}),
   });
 
-  const dataResult = await client.data.waitForResult(params.sessionId, dataHandle);
-  if (!dataResult.ok) {
-    throw new Error(`Data request failed: ${dataResult.reason}`);
-  }
-  if (dataResult.artifact.kind !== 'values') {
-    throw new Error(`Expected a values artifact, received ${dataResult.artifact.kind}.`);
+  const memoryResult = await client.memory.waitForResult(params.sessionId, memoryHandle);
+  if (!memoryResult.ok) {
+    throw new Error(`Memory request failed: ${memoryResult.reason}`);
   }
 
   if (!params.action) {
     return {
-      facts,
-      dataResult,
+      memoryResult,
     };
   }
 
@@ -120,8 +116,7 @@ export async function runRootClientFlow(params: RootClientFlowParams) {
   }
 
   return {
-    facts,
-    dataResult,
+    memoryResult,
     actionResult,
   };
 }

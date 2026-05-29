@@ -1,48 +1,11 @@
 # Getting Started
 
-Use this guide when you want the first root-SDK integration from your own
-runtime.
-
-The standard flow is:
-
-1. create the client;
-2. create or load a workflow session;
-3. read `profile.facts()` for reusable open data;
-4. call `data.resolve(...)` and `data.waitForResult(...)` for form data;
-5. call `actions.run(...)` and `actions.waitForResult(...)` for protected
-   actions when the flow needs them.
-6. call `choice.request(...)` and `choice.waitForResult(...)` when the flow
-   needs the user to choose from options.
-
-## Before You Start
-
-You need:
-
-- Node 18 or newer;
-- a MagicPay API key from
-  [`agents.mercuryo.io/signup`](https://agents.mercuryo.io/signup);
-- page or task context that your runtime already understands.
-
-You can either:
-
-- create a new session through `client.sessions.create(...)`; or
-- reuse an existing `sessionId` created elsewhere in your runtime.
-
-If your runtime starts from observed browser forms rather than explicit request
-input, read [Integration Modes](./integration-modes.md) before you continue.
-
-## 1. Install The SDK
-
-```bash
-npm i @mercuryo-ai/magicpay-sdk
-```
-
-## 2. Create The Client
+## 1. Create a client
 
 ```ts
 import { createMagicPayClient } from '@mercuryo-ai/magicpay-sdk';
 
-const client = createMagicPayClient({
+export const client = createMagicPayClient({
   gateway: {
     apiKey: process.env.MAGICPAY_API_KEY!,
     apiUrl: 'https://agents-api.mercuryo.io/functions/v1/api',
@@ -50,312 +13,147 @@ const client = createMagicPayClient({
 });
 ```
 
-`createMagicPayClient(...)` gives you one typed client for session helpers,
-profile facts, data resolution, and actions.
+The SDK is intended for trusted runtime code. Do not expose the API key to an
+untrusted browser.
 
-## 3. Create Or Load A Session
-
-For backend jobs, workers, MCP tools, and API-only flows, create a regular
-session and leave browser-specific fields out of the request body.
+## 2. Create a session
 
 ```ts
 const { session } = await client.sessions.create({
   type: 'payment',
-  description: 'Pay for SF→NYC ticket',
+  description: 'Book a flight',
   merchantName: 'Airline Example',
+});
+```
+
+The session groups Memory requests, action requests, choice requests, browser
+telemetry, and completion state.
+
+## 3. Create a Memory request
+
+```ts
+const handle = await client.memory.createRequest(session.id, {
+  clientRequestId: 'checkout-email-1',
+  kind: 'memory.provide_missing',
+  fields: [{ key: 'email', label: 'Email', required: true, type: 'email' }],
   context: {
-    url: 'https://airline.example.com/checkout',
-    task: 'resolve payment card for checkout',
-  },
-  metadata: {
-    source: 'backend-worker',
-  },
-});
-
-const sessionId = session.id;
-```
-
-`session.type` is the billing classification of the workflow
-(`payment` / `subscription` / `cancellation`). The schema you actually
-resolve (`login.basic`, `identity.basic`, `payment_card.provider`, …) is
-chosen separately per `data.resolve(...)` call.
-
-If you already have a `sessionId`, reuse it and skip this step.
-
-Browser runtimes can also attach an optional `browser` block with
-`sessionId`, `run`, and `step`. Backend and API-only flows leave that block
-out.
-
-## 4. Read Profile Facts
-
-Use `profile.facts()` when open reusable data is enough and you do not need a
-protected request yet.
-
-```ts
-const facts = await client.profile.facts();
-console.log(facts);
-```
-
-Think of `profile.facts()` as instant access to public user data (name, email,
-locale) that MagicPay can provide without requiring approval.
-
-If the user explicitly gives a reusable open fact in chat and agrees that it
-should be saved for future use, write only that partial set:
-
-```ts
-await client.profile.saveFacts({
-  family_name: 'Ivanov',
-});
-```
-
-Then read or resolve from a fresh profile snapshot. Do not fill a browser form
-directly from chat text; keep the flow as save profile facts, resolve fields,
-then fill only matched targets.
-
-`profile.facts()` is the broad read model for reusable open data. It is not a
-page-matching helper for live browser targets. If your runtime is already
-driving a browser and has observed target refs on the current page,
-per-target matching on those targets is a separate concern that belongs in
-the browser-runtime layer above this SDK. That layer should return one
-terminal decision per target (`matched`, `ambiguous`, or `no_match`) rather
-than passing raw `profile.facts()` output through the model.
-
-For a MagicBrowse runtime, use the open-data helpers in
-`@mercuryo-ai/magicpay-sdk/magicbrowse`:
-
-```ts
-import {
-  listObservedOpenDataEligibleTargetRefs,
-  resolveObservedOpenDataTargets,
-} from '@mercuryo-ai/magicpay-sdk/magicbrowse';
-
-const facts = await client.profile.facts();
-const snapshot = {
-  valuesByField: {
-    email: [
-      {
-        fieldKey: 'email',
-        value: String(facts.facts.email),
-        source: 'profile_facts' as const,
-        applicability: { target: 'global' as const },
-      },
-    ],
-  },
-};
-
-const targetRefs = listObservedOpenDataEligibleTargetRefs({
-  targets: observedTargetsByRef,
-  protectedForms: observedProtectedForms,
-});
-
-const openData = await resolveObservedOpenDataTargets({
-  targets: observedTargetsByRef,
-  targetRefs,
-  matcherModel: semanticMatcherModel,
-  protectedForms: observedProtectedForms,
-  snapshot,
-  page: { url: 'https://airline.example.com/checkout' },
-});
-```
-
-See [Open Data Matching](./open-data.md) and
-[`examples/open-data-magicbrowse.ts`](../examples/open-data-magicbrowse.ts)
-for a complete reusable adapter.
-
-## 5. Resolve Data For A Protected Step
-
-Use `data.resolve(...)` when the runtime needs actual field values for the
-current protected page or form.
-
-```ts
-const cardHandle = await client.data.resolve(
-  sessionId,
-  {
-    clientRequestId: 'airline-checkout-card-1',
-    fields: [
-      { key: 'cardholder' },
-      { key: 'pan' },
-      { key: 'exp_month' },
-      { key: 'exp_year' },
-      { key: 'cvv' },
-    ],
-    context: {
-      url: 'https://airline.example.com/checkout',
-      pageTitle: 'Checkout',
-      formPurpose: 'payment_card',
-      merchantName: 'Airline Example',
-    },
-    saveHint: {
-      category: 'payment_card',
-      displayName: 'Primary Visa',
-      schemaRef: 'payment_card.provider',
-    },
-  }
-);
-
-const cardResult = await client.data.waitForResult(sessionId, cardHandle);
-
-if (!cardResult.ok) {
-  throw new Error(cardResult.reason);
-}
-
-if (cardResult.artifact.kind !== 'values') {
-  throw new Error(`Expected values, received ${cardResult.artifact.kind}`);
-}
-
-await yourRuntime.fillPaymentCard(cardResult.artifact.values);
-```
-
-`cardResult.artifact.values` is short-lived handoff material. Forward it to
-your trusted browser or provider boundary, then drop it. Do not log it or send
-it back through an LLM prompt.
-
-Important root-SDK behavior:
-
-- **`clientRequestId` makes retries safe.** Bring your own stable id (a
-  UUID persisted with your task state, or a deterministic
-  `"checkout-${taskId}-login"` string). Retrying with the same id returns
-  the same `requestId` instead of duplicating the request.
-- **Two-step resolve / wait.** `data.resolve(...)` creates the request
-  handle; `data.waitForResult(...)` waits for the result. Splitting them
-  lets another process resume waiting on the same `requestId` — useful
-  when your runtime reconnects, shards, or runs in a short-lived function.
-- **Bridge metadata is optional.** `input.bridge` carries browser-only
-  identifiers (`pageRef`, `fillRef`, `scopeRef`). API-only flows omit it.
-
-## 6. Run A Protected Action
-
-Use `actions.run(...)` when the task is not "give me field values" but "perform
-or confirm a protected action".
-
-```ts
-const actionHandle = await client.actions.run(sessionId, {
-  clientRequestId: 'airline-checkout-confirm-1',
-  capability: 'confirm',
-  display: {
-    summary: 'Approve the final checkout step',
-  },
-  context: {
-    url: 'https://airline.example.com/checkout/review',
-    pageTitle: 'Review order',
+    url: 'https://airline.example.com/login',
     merchantName: 'Airline Example',
   },
 });
 
-const actionResult = await client.actions.waitForResult(sessionId, actionHandle);
-
-if (!actionResult.ok) {
-  throw new Error(actionResult.reason);
-}
-```
-
-The root SDK hides the same waiting and artifact mechanics here too. The
-runtime creates the action request, then waits for the final result without
-manually coordinating request polling.
-
-## 7. Ask The User To Choose From Options
-
-Use `choice.request(...)` when your runtime has found concrete options and
-needs the user to pick one before the flow can continue.
-
-```ts
-const choiceHandle = await client.choice.request(sessionId, {
-  clientRequestId: 'airline-seat-choice-1',
-  prompt: 'Choose a seat for the SF to NYC flight.',
-  options: [
-    {
-      id: 'seat-12a',
-      title: 'Seat 12A',
-      subtitle: 'Window',
-      price: { amount: 18, currency: 'USD', label: '$18' },
-    },
-    {
-      id: 'seat-12c',
-      title: 'Seat 12C',
-      subtitle: 'Aisle',
-      price: { amount: 18, currency: 'USD', label: '$18' },
-    },
-  ],
-  context: {
-    url: 'https://airline.example.com/seats',
-    pageTitle: 'Choose seats',
-    merchantName: 'Airline Example',
-  },
-});
-
-const choiceResult = await client.choice.waitForResult(sessionId, choiceHandle);
-
-if (!choiceResult.ok) {
-  throw new Error(choiceResult.reason);
-}
-
-if (choiceResult.artifact.kind !== 'choice') {
-  throw new Error(`Expected choice, received ${choiceResult.artifact.kind}`);
-}
-
-if (choiceResult.artifact.adjustment_prompt) {
-  await searchAgain(choiceResult.artifact.adjustment_prompt);
-} else if (choiceResult.artifact.selected_option) {
-  await continueWithOption(choiceResult.artifact.selected_option.id);
-}
-```
-
-Use choice requests for option selection only. Do not use them for protected
-field values; use `data.resolve(...)` for values and `actions.run(...)` for
-approval or execution.
-
-## 8. Handle Failures
-
-Both `data.waitForResult(...)` and `actions.waitForResult(...)` can return
-`{ ok: false, reason }`. This is a normal branch, not an exception.
-
-Five reasons are possible:
-
-- `denied` — the user or a trust rule rejected the request;
-- `expired` — the server-side TTL elapsed before approval; create a fresh
-  request if the step still matters;
-- `timeout` — the local wait window (`timeoutMs`) elapsed; the server
-  request may still be alive — call `waitForResult(...)` again with the
-  same `requestId` to resume;
-- `canceled` — the caller aborted or the session stopped server-side; the
-  result carries `code` and `message` explaining why;
-- `failed` — terminal failure; check `errorCode` on the result before
-  retrying.
-
-```ts
-const result = await client.data.waitForResult(sessionId, handle);
+const result = await client.memory.waitForResult(session.id, handle);
 
 if (!result.ok) {
-  switch (result.reason) {
-    case 'denied':
-    case 'canceled':
-    case 'failed':
-      return null; // terminal for this attempt, surface to the caller
-    case 'expired':
-      return null; // create a fresh request if the task is still relevant
-    case 'timeout':
-      return null; // resume later with the same requestId, if still relevant
-  }
+  throw new Error(result.reason);
 }
-// result.artifact is safe to use
 ```
 
-See [Error Reference](./error-reference.md) for the full table, bridge
-failure kinds, and HTTP-level errors.
+Memory request kinds:
 
-## 9. Continue In Your Runtime
+| Kind | Use when |
+| --- | --- |
+| `memory.ask_before_use` | A stored Memory handle requires explicit use approval. |
+| `memory.provide_missing` | A needed field has no usable Memory handle yet. |
+| `memory.runtime_value` | The runtime needs one current-run value reference. |
+| `memory.choose_candidate` | Several Memory candidates can satisfy the same target. |
+| `memory.provider_reauth` | A provider-backed handle needs reauthentication. |
+| `memory.provider_unavailable` | A provider-backed handle cannot be used now. |
+| `memory.stale_target` | The browser target changed and the user must choose how to continue. |
 
-At this point the SDK has done its part. Your runtime decides what happens
-next:
+## 5. Plan and apply browser fill
 
-- fill the browser form with the resolved values;
-- continue a provider or wallet flow after an action result;
-- call an external API with the resolved values or action artifact;
-- resume a broader orchestration loop.
+```ts
+import { fetchMemoryCatalog, materializeMemoryValues } from '@mercuryo-ai/magicpay-sdk/core';
+import { applyFill, planFill } from '@mercuryo-ai/magicpay-sdk/fill-plan-apply';
 
-## Optional Browser Bridge
+const page = {
+  url: 'https://airline.example.com/login',
+  fingerprint: 'page-fingerprint',
+  targets: [{ targetRef: 'email', label: 'Email', fieldName: 'email', fillable: true }],
+};
 
-If your runtime uses `@mercuryo-ai/magicbrowse` and starts from observed browser
-forms, the optional bridge is documented in
-[Integration Modes](./integration-modes.md) and
-[`examples/magicbrowse-bridge.ts`](../examples/magicbrowse-bridge.ts).
+const catalog = await fetchMemoryCatalog(client.gateway, session.id, page.url);
+
+const plan = await planFill({
+  sessionId: session.id,
+  page,
+  targetMatches: [
+    {
+      status: 'matched',
+      targetRef: 'email',
+      fieldRef: 'profile.email',
+      fieldName: 'email',
+      confidence: 'high',
+    },
+  ],
+  memoryCatalog: catalog,
+});
+
+const applyResult = await applyFill({
+  plan,
+  currentPageState: {
+    fingerprint: page.fingerprint,
+    targets: page.targets,
+  },
+  materializeValue: async (handle) => {
+    const response = await materializeMemoryValues(client.gateway, session.id, [handle]);
+    const entry = response.values.find((value) => value.handle === handle);
+    return entry?.value ?? entry?.text ?? '';
+  },
+  browserWriter: {
+    async fill(input) {
+      await yourBrowser.fill(input.targetRef, input.value);
+      return { status: 'filled' };
+    },
+  },
+});
+```
+
+`planFill(...)` is value-free. `applyFill(...)` materializes only handles that
+are ready for the current page state and stops before final commitment actions.
+If the catalog says a provider-backed payment card exists but needs payment
+authorization, `planFill(...)` returns a non-blocking blocker with
+`kind: 'payment_card.authorization_required'`,
+`status: 'authorization_required'`, and
+`reason: 'payment_authorization_required'`. Treat that as machine state:
+collect visible payment facts, run the `authorize_payment` action flow, fetch
+a fresh catalog for the same active session, and plan again.
+
+## 6. Confirm an action
+
+```ts
+const action = await client.actions.run(session.id, {
+  clientRequestId: 'confirm-checkout-1',
+  capability: 'confirm',
+  params: {
+    summary: 'Confirm checkout',
+  },
+  context: {
+    url: 'https://airline.example.com/pay',
+    merchantName: 'Airline Example',
+  },
+});
+
+const actionResult = await client.actions.waitForResult(session.id, action);
+```
+
+Use actions for explicit user-confirmed operations. Field fill and final
+commitment should stay separate.
+
+## 7. Ask the user to choose
+
+```ts
+const choice = await client.choice.request(session.id, {
+  prompt: 'Choose a flight',
+  options: [
+    { id: 'flight-1', title: '08:00 direct flight', price: { amount: 320, currency: 'USD' } },
+    { id: 'flight-2', title: '12:00 direct flight', price: { amount: 350, currency: 'USD' } },
+  ],
+});
+
+const choiceResult = await client.choice.waitForResult(session.id, choice);
+```
+
+Choice requests are for runtime options. They are not a replacement for Memory
+requests or action confirmations.

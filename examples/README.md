@@ -1,40 +1,16 @@
 # MagicPay SDK Examples
 
-These examples are small integration snippets for the public MagicPay SDK.
+These examples cover the current public SDK surface:
 
-The public root-client story is:
-
-- read `profile.facts()` when open reusable data is enough;
-- start protected data requests with `data.resolve(...)` and wait for the
-  artifact with `data.waitForResult(...)`;
-- start protected actions with `actions.run(...)` and wait for the artifact
-  with `actions.waitForResult(...)`.
-
-Before you run or adapt them, provide your own:
-
-- MagicPay API key;
-- `sessionId`;
-- page or task context;
-- approval UX;
-- MagicBrowse session, when an example uses the browser bridge.
+- Memory;
+- Memory requests;
+- Memory catalog and plan/apply fill;
+- user-confirmed actions;
+- deterministic test clients.
 
 ## Files
 
 - [`root-client-flow.ts`](./root-client-flow.ts)
-- [`data-resolve-values.ts`](./data-resolve-values.ts)
-- [`magicbrowse-bridge.ts`](./magicbrowse-bridge.ts)
-- [`open-data-magicbrowse.ts`](./open-data-magicbrowse.ts)
-- [`values-external-api.ts`](./values-external-api.ts)
+- [`memory-request.ts`](./memory-request.ts)
+- [`memory-plan-apply.ts`](./memory-plan-apply.ts)
 - [`testing-fetch.ts`](./testing-fetch.ts)
-
-Start with [`root-client-flow.ts`](./root-client-flow.ts) and
-[Getting Started](../docs/getting-started.md) for the main root-client flow.
-Use [`data-resolve-values.ts`](./data-resolve-values.ts) when you only need a
-protected `values` artifact. Use
-[`values-external-api.ts`](./values-external-api.ts) when you want to hand
-resolved values to another HTTP service. Use
-[`magicbrowse-bridge.ts`](./magicbrowse-bridge.ts) only when your runtime already has
-MagicBrowse observed forms.
-Use [`open-data-magicbrowse.ts`](./open-data-magicbrowse.ts) when your runtime
-has MagicBrowse observed targets and wants to match public profile facts to
-ordinary non-protected fields.
