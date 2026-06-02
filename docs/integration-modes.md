@@ -31,20 +31,27 @@ action is approved for the active session.
 
 ## Fill Plan / Apply
 
-Use `@mercuryo-ai/magicpay-sdk/fill-plan-apply` when a browser runtime already
-has page targets and Memory target matches.
+Use `@mercuryo-ai/magicpay-sdk/fill-plan-apply` when trusted runtime code needs
+to write Memory values into a target. Targets are runtime-defined: an API
+header, a provider SDK parameter, a browser field, or another controlled write.
 
-The expected shape is:
+The API has three levels:
 
-1. observe the page in your browser runtime;
-2. match observed targets to Memory field refs;
-3. call `planFill(...)` with targets, matches, and the Memory catalog;
-4. call `applyFill(...)` with a current page fingerprint, a materializer, and a
-   browser writer.
+1. `fillMemoryValue(...)` fills one known handle through one `write(value)`
+   callback;
+2. `applyFill(...)` applies an existing handle-only `FillPlan` through a target
+   writer;
+3. `planFill(...)` builds that plan from target descriptors, Memory target
+   matches, and the value-free Memory catalog.
+
+For a browser integration, the surrounding runtime observes browser fields,
+matches them to Memory field refs, and supplies a `TargetValueWriter`. For an
+API integration, the runtime can supply a writer that assigns request headers
+or provider SDK parameters.
 
 `applyFill(...)` may return `waiting_for_user`, `needs_replan`, `blocked`,
-`partial`, `no_progress`, or `filled`. Treat those statuses as orchestration
-state, not as browser-submit permission.
+`partial`, `no_progress`, or `filled`. Treat those statuses as fill state, not
+as final-submit permission.
 `planFill(...)` may also add a non-blocking
 `payment_card.authorization_required` blocker when the catalog has the
 authorization-required card state. Authorize the payment, then fetch the
@@ -57,5 +64,6 @@ URL lookup.
 
 ## What Is Not In The SDK
 
-The SDK does not own browser automation, UI rendering, provider execution, or
-final business commits. Keep those responsibilities in the surrounding runtime.
+The SDK does not own browser automation, UI rendering, provider execution,
+application logging, or final business commits. Keep those responsibilities in
+the surrounding runtime.

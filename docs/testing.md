@@ -30,5 +30,10 @@ const client = createMagicPayClient({
 });
 ```
 
-For fill-plan tests, keep the browser writer as a small fake that records
-`targetRef` and `value`, then assert the result status and field outcomes.
+For `fillMemoryValue(...)` tests, pass a fake `materializeValue` callback and
+a fake `write` callback that records the value locally. Assert the returned
+status and avoid logging the recorded value.
+
+For `applyFill(...)` tests, keep the target writer as a small fake that records
+`targetRef`, `fieldName`, and `value`, then assert the result status and field
+outcomes.

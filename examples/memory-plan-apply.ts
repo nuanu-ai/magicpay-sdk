@@ -1,37 +1,37 @@
-import {
-  fetchMemoryCatalog,
-  materializeMemoryValues,
-} from '@mercuryo-ai/magicpay-sdk/core';
+import { fetchMemoryCatalog, materializeMemoryValues } from '@mercuryo-ai/magicpay-sdk/core';
 import type { MagicPayGatewayConfig } from '@mercuryo-ai/magicpay-sdk';
 import {
   applyFill,
   planFill,
   type ApplyFillResult,
   type MemoryTargetMatch,
-  type ObservedTarget,
+  type FillTargetDescriptor,
+  type TargetValueWriter,
   type ValueFreeMemoryCatalogSnapshot,
 } from '@mercuryo-ai/magicpay-sdk/fill-plan-apply';
-
-export interface BrowserFieldWriter {
-  fill(input: { targetRef: string; value: string }): Promise<{ status: 'filled' } | void>;
-}
 
 export interface MemoryPlanApplyExampleParams {
   gateway: MagicPayGatewayConfig;
   sessionId: string;
-  page: {
-    url: string;
+  targetSet: {
     fingerprint: string;
-    targets: ObservedTarget[];
+    targets: FillTargetDescriptor[];
+    context?: {
+      url?: string;
+    };
   };
   targetMatches: MemoryTargetMatch[];
-  browserWriter: BrowserFieldWriter;
+  targetWriter: TargetValueWriter;
 }
 
 export async function planAndApplyMemoryFill(
   params: MemoryPlanApplyExampleParams
 ): Promise<ApplyFillResult> {
-  const catalog = await fetchMemoryCatalog(params.gateway, params.sessionId, params.page.url);
+  const catalog = await fetchMemoryCatalog(
+    params.gateway,
+    params.sessionId,
+    params.targetSet.context?.url ?? ''
+  );
   const memoryCatalog: ValueFreeMemoryCatalogSnapshot = {
     valueVisibility: catalog.valueVisibility,
     handles: catalog.handles.map((handle) => ({
@@ -47,16 +47,16 @@ export async function planAndApplyMemoryFill(
 
   const plan = await planFill({
     sessionId: params.sessionId,
-    page: params.page,
+    targetSet: params.targetSet,
     targetMatches: params.targetMatches,
     memoryCatalog,
   });
 
   return applyFill({
     plan,
-    currentPageState: {
-      fingerprint: params.page.fingerprint,
-      targets: params.page.targets,
+    currentTargetState: {
+      fingerprint: params.targetSet.fingerprint,
+      targets: params.targetSet.targets,
     },
     materializeValue: async (handle) => {
       const response = await materializeMemoryValues(params.gateway, params.sessionId, [handle]);
@@ -66,6 +66,6 @@ export async function planAndApplyMemoryFill(
       }
       return String(value.value ?? value.text ?? '');
     },
-    browserWriter: params.browserWriter,
+    targetWriter: params.targetWriter,
   });
 }

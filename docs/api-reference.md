@@ -19,49 +19,96 @@ const client = createMagicPayClient({
 ## Memory APIs
 
 ```ts
-const facts = await client.memory.createRequest(...);
-const updated = await client.memory.createRequest(...);
+const items = await client.memoryItems.list({ status: 'active' });
+const handle = await client.memory.createRequest(sessionId, input);
 ```
 
-`saveFacts(...)` writes reusable Memory. It is intentionally separate
-from Memory request handling.
+Use `client.memoryItems` for saved Memory records. Use `client.memory` for
+waitable user requests such as missing values, ask-before-use decisions,
+candidate selection, reauth, and runtime value references.
 
 ## `client.memoryItems`
 
 Use `client.memoryItems` when trusted runtime code needs to list, create, or
 update saved Memory item records directly. Responses are value-free: field
-records include handles and metadata, not reusable raw values.
+records include names, useful hints, sparse `secret: true` markers, and item
+`readOnly` state, not reusable raw values.
 
 ```ts
-const items = await client.memoryItems.list({ kind: 'profile', status: 'active' });
+const items = await client.memoryItems.list({ status: 'active' });
 
 const item = items.find(
   (candidate) =>
-    candidate.kind === 'profile' &&
     candidate.label === 'Facts about user' &&
+    candidate.readOnly === false &&
     candidate.scope.length === 0
 );
 
 if (item) {
   await client.memoryItems.update(item.id, {
     updateMode: 'update_existing',
-    fields: [{ name: 'family_name', value: 'Ivanov' }],
+    fields: [
+      {
+        name: 'family_name',
+        value: 'Ivanov',
+        hint: 'Family name for identity and booking forms',
+      },
+    ],
   });
 } else {
   await client.memoryItems.create({
     label: 'Facts about user',
-    kind: 'profile',
-    schemaRef: 'memory.profile',
     scope: [],
-    fields: [{ name: 'given_name', value: 'Dmitry' }],
+    askBeforeUse: true,
+    fields: [
+      {
+        name: 'given_name',
+        value: 'Dmitry',
+        hint: 'Given name for identity and booking forms',
+      },
+      {
+        name: 'full_name',
+        value: 'Dmitry Ivanov',
+        valueType: 'person_name',
+        hint: 'Full legal name for identity and booking forms',
+      },
+      {
+        name: 'date_of_birth',
+        value: '1990-05-10',
+        valueType: 'date',
+        hint: 'Date of birth in YYYY-MM-DD',
+      },
+      {
+        name: 'phone',
+        value: '+14155550100',
+        valueType: 'phone_number',
+        hint: 'Phone number in E.164 format',
+      },
+    ],
   });
 }
 ```
 
 `create(...)` accepts simple field values and sends them as encrypted Memory
-value payloads. `update(...)` only sends the fields provided by the caller;
-use `updateMode: 'update_existing'` to preserve existing fields while adding
-or replacing named fields.
+value payloads. Use `isSecret` or `secret` for passwords, API keys, tokens,
+card PAN/CVV, document numbers, and values unsafe for logs. `update(...)` only
+sends the fields provided by the caller; use `updateMode: 'update_existing'`
+to preserve existing fields while adding or replacing named fields. A field can
+be sent with only `name` and `hint` to update the hint of an existing field.
+
+`valueType` / `value_type` is optional. When present, it enables deterministic
+normalization and projection for that field during fill. Public editable value
+types are:
+
+- `date` — canonical value must be `YYYY-MM-DD`;
+- `phone_number` — canonical value must be E.164, for example
+  `+14155550100`;
+- `person_name` — canonical value must be a non-empty full name string.
+
+Omit `valueType` for ordinary direct fill. Public Memory item create/update
+rejects internal card value types such as `payment_card_number` and
+`payment_card_expiry`; provider-backed payment cards expose those only through
+the session catalog after payment authorization.
 
 ## `client.memory`
 
@@ -181,7 +228,7 @@ await client.sessions.completeWithOutcome(created.session.id, {
 ```ts
 import { fetchMemoryCatalog, materializeMemoryValues } from '@mercuryo-ai/magicpay-sdk/core';
 
-const catalog = await fetchMemoryCatalog(gateway, sessionId, pageUrl);
+const catalog = await fetchMemoryCatalog(gateway, sessionId, targetUrl);
 const values = await materializeMemoryValues(gateway, sessionId, ['handle_email']);
 ```
 
@@ -206,29 +253,109 @@ Direct materialization or data requests for card fields before that approval
 fail with `payment_card_authorization_required` /
 `payment_authorization_required`.
 
-## Fill Plan / Apply
+## Memory Fill
 
 ```ts
-import { applyFill, planFill } from '@mercuryo-ai/magicpay-sdk/fill-plan-apply';
+import {
+  applyFill,
+  applyPlannedField,
+  collectFillPlanApplyBlockers,
+  fillMemoryValue,
+  parseFillPlan,
+  planFill,
+  validateFillPlan,
+} from '@mercuryo-ai/magicpay-sdk/fill-plan-apply';
+```
 
+### `fillMemoryValue(input)`
+
+```ts
+await fillMemoryValue({
+  handle,
+  targetRef: 'authorization-header',
+  fieldName: 'authorization',
+  materializeValue,
+  write: async (value) => {
+    request.headers.authorization = `Bearer ${value}`;
+  },
+});
+```
+
+Use `fillMemoryValue(...)` when trusted runtime code already knows the Memory
+handle and needs to write one current-run value. The helper:
+
+- calls `materializeValue(handle)`;
+- installs an exact-value redaction profile when `installRedactionProfile` is
+  supplied;
+- emits value-free events when `eventSink` is supplied;
+- calls your `write(value)` callback;
+- returns status metadata without returning the raw value.
+
+### `applyFill(input)`
+
+```ts
+const result = await applyFill({
+  plan,
+  currentTargetState,
+  materializeValue,
+  targetWriter,
+});
+```
+
+Use `applyFill(...)` when you already have a handle-only `FillPlan`. The plan
+can be authored by your runtime, parsed from JSON, or returned by
+`planFill(...)`. The apply step verifies the target-set fingerprint before
+materializing and writes only through the target writer supplied by your
+runtime.
+
+### `planFill(input)`
+
+```ts
 const plan = await planFill({
   sessionId,
-  page,
+  targetSet,
+  targetMatches,
+  memoryCatalog,
+});
+```
+
+Use `planFill(...)` when you want the SDK to build a `FillPlan` from a
+value-free catalog, target descriptors, and Memory target matches.
+
+```ts
+const validation = validateFillPlan(maybePlan);
+const plan = parseFillPlan(maybePlan);
+const blockers = collectFillPlanApplyBlockers(plan);
+```
+
+Use `validateFillPlan(...)` or `parseFillPlan(...)` when a plan comes from
+outside TypeScript type checking. Use `collectFillPlanApplyBlockers(...)` when
+you need to inspect which user requests would be needed before apply can
+materialize values.
+
+For tests or custom orchestration, `applyPlannedField(...)` applies one ready
+field through the same target writer and materialization callbacks as
+`applyFill(...)`.
+
+### Example
+
+```ts
+const plan = await planFill({
+  sessionId,
+  targetSet,
   targetMatches,
   memoryCatalog,
 });
 
 const result = await applyFill({
   plan,
-  currentPageState,
+  currentTargetState,
   materializeValue,
-  browserWriter,
+  targetWriter,
 });
 ```
 
-The plan is value-free. The apply step verifies the page fingerprint before
-materializing and writes only through the browser writer supplied by your
-runtime.
+The plan is value-free and contains handles, not raw values.
 `planFill(...)` copies catalog-only provider-card availability into a
 non-blocking blocker:
 

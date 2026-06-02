@@ -57,7 +57,7 @@ parsing text:
 | `filled` | All ready fields were written. |
 | `partial` | Some fields were written and then apply stopped. |
 | `waiting_for_user` | A Memory decision or value is needed before materialization. |
-| `needs_replan` | The page or target changed; observe and plan again. |
+| `needs_replan` | The target set changed; observe or describe targets and plan again. |
 | `blocked` | The current flow cannot fill through the supplied writer. |
 | `no_progress` | Nothing was written and no immediate retry is useful. |
 
