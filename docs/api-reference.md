@@ -34,6 +34,15 @@ update saved Memory item records directly. Responses are value-free: field
 records include names, useful hints, sparse `secret: true` markers, and item
 `readOnly` state, not reusable raw values.
 
+A Memory item is a user-owned reusable data record. Its `label` is the
+human-readable name for the record, while `fields` hold reusable facts inside
+that record. Use short stable labels that describe the group, for example
+`Airline login`, `Traveler profile`, `Home shipping address`, `Wallet`, or
+`Facts about user`. Use `Facts about user` only for global profile facts with no
+narrower record; use narrower labels for site/account-specific logins, traveler
+profiles, addresses, wallets, payment-related records, and other coherent
+groups. Do not include raw values in labels.
+
 ```ts
 const items = await client.memoryItems.list({ status: 'active' });
 

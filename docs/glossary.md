@@ -35,6 +35,14 @@ An optional public field type on saved Memory items. Public editable value
 types are `date`, `phone_number`, and `person_name`. When absent, the field is
 filled directly and is not split or normalized by projection logic.
 
+## Memory item
+
+A user-owned reusable data record such as a login, traveler profile, address,
+wallet, payment-related record, or global profile facts. The item label is the
+human-readable record name; fields hold the reusable facts inside the record.
+Use labels like `Airline login`, `Traveler profile`, `Home shipping address`, or
+`Facts about user`, and never include raw saved values in labels.
+
 ## Memory availability
 
 A machine-readable catalog state for data that exists but cannot be returned

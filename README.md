@@ -245,6 +245,10 @@ if (applyResult.status !== 'filled' && applyResult.status !== 'partial') {
 - `client.memoryItems.list(...)` lists value-free Memory item records with field names, hints, and read-only markers.
 - `client.memoryItems.create(...)` creates a Memory item with encrypted value handles.
 - `client.memoryItems.update(...)` patches an existing Memory item.
+- A Memory item is a user-owned reusable record with a human-readable label and
+  related fields. Use labels like `Airline login`, `Traveler profile`,
+  `Home shipping address`, or `Facts about user`; do not put raw values in the
+  label.
 - Memory item fields may include `valueType` / `value_type` when the stored
   value should be normalized for projection. Public editable value types are
   `date`, `phone_number`, and `person_name`. Omit the type for ordinary direct
