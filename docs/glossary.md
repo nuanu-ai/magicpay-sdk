@@ -99,5 +99,5 @@ stale target state.
 ## target writer
 
 The caller-owned adapter passed to `applyFill(...)`. It receives
-`targetRef`, optional `fieldName`, and the current-run value, writes to the
-actual runtime target, and returns fill status.
+`targetRef`, optional `fieldRef`, optional display `fieldLabel`, and the
+current-run value, writes to the actual runtime target, and returns fill status.

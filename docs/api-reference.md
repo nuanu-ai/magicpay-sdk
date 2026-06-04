@@ -19,7 +19,10 @@ const client = createMagicPayClient({
 ## Memory APIs
 
 ```ts
-const items = await client.memoryItems.list({ status: 'active' });
+const items = await client.memoryItems.list({
+  url: 'https://example.com/login',
+  status: 'active',
+});
 const handle = await client.memory.createRequest(sessionId, input);
 ```
 
@@ -29,10 +32,10 @@ candidate selection, reauth, and runtime value references.
 
 ## `client.memoryItems`
 
-Use `client.memoryItems` when trusted runtime code needs to list, create, or
-update saved Memory item records directly. Responses are value-free: field
-records include names, useful hints, sparse `secret: true` markers, and item
-`readOnly` state, not reusable raw values.
+Use `client.memoryItems` when trusted runtime code needs to list, get, create,
+update, or delete saved Memory item records directly. Responses are value-free:
+field records include `fieldRef`, human `label`, useful hints, sparse
+`secret: true` markers, and item `readOnly` state, not reusable raw values.
 
 A Memory item is a user-owned reusable data record. Its `label` is the
 human-readable name for the record, while `fields` hold reusable facts inside
@@ -44,7 +47,10 @@ profiles, addresses, wallets, payment-related records, and other coherent
 groups. Do not include raw values in labels.
 
 ```ts
-const items = await client.memoryItems.list({ status: 'active' });
+const items = await client.memoryItems.list({
+  url: 'https://example.com/login',
+  status: 'active',
+});
 
 const item = items.find(
   (candidate) =>
@@ -58,7 +64,8 @@ if (item) {
     updateMode: 'update_existing',
     fields: [
       {
-        name: 'family_name',
+        fieldRef: 'field_family_name',
+        label: 'Family name',
         value: 'Ivanov',
         hint: 'Family name for identity and booking forms',
       },
@@ -71,24 +78,24 @@ if (item) {
     askBeforeUse: true,
     fields: [
       {
-        name: 'given_name',
+        label: 'Given name',
         value: 'Dmitry',
         hint: 'Given name for identity and booking forms',
       },
       {
-        name: 'full_name',
+        label: 'Full name',
         value: 'Dmitry Ivanov',
         valueType: 'person_name',
         hint: 'Full legal name for identity and booking forms',
       },
       {
-        name: 'date_of_birth',
+        label: 'Date of birth',
         value: '1990-05-10',
         valueType: 'date',
         hint: 'Date of birth in YYYY-MM-DD',
       },
       {
-        name: 'phone',
+        label: 'Phone',
         value: '+14155550100',
         valueType: 'phone_number',
         hint: 'Phone number in E.164 format',
@@ -98,12 +105,25 @@ if (item) {
 }
 ```
 
-`create(...)` accepts simple field values and sends them as encrypted Memory
-value payloads. Use `isSecret` or `secret` for passwords, API keys, tokens,
-card PAN/CVV, document numbers, and values unsafe for logs. `update(...)` only
-sends the fields provided by the caller; use `updateMode: 'update_existing'`
-to preserve existing fields while adding or replacing named fields. A field can
-be sent with only `name` and `hint` to update the hint of an existing field.
+`get(itemId)` returns one value-free item by stable item id. `delete(itemId)`
+soft-deletes one editable item.
+
+```ts
+const selected = await client.memoryItems.get('mem_profile_user');
+await client.memoryItems.delete('mem_unused_profile');
+```
+
+`create(...)` accepts simple field values and sends them as Memory value
+payloads. New fields use human-readable labels because they do not have
+`fieldRef` yet. `update(...)` only sends the fields provided by the caller; use
+`updateMode: 'update_existing'` to preserve existing fields while updating
+fields by `fieldRef` or adding new fields by `label`. A field can be sent with
+only `fieldRef`, `label`, and `hint` to update the label or hint of an existing
+field. Existing fields are never addressed by label.
+
+Use `isSecret` or `secret` for values that should be hidden from display and
+kept out of detailed logs. This flag is mutable display/logging metadata. It is
+not a value type and not an encryption mode.
 
 `valueType` / `value_type` is optional. When present, it enables deterministic
 normalization and projection for that field during fill. Public editable value
@@ -155,8 +175,8 @@ interface MagicPayMemoryRequestInput {
   itemRef?: string;
   handleRef?: string;
   fieldKey?: string;
-  fieldName?: string;
   fieldRef?: string;
+  fieldLabel?: string;
   targetRef?: string;
   fields?: MagicPayMemoryRequestedField[];
   candidates?: readonly Record<string, unknown>[];
@@ -282,7 +302,7 @@ import {
 await fillMemoryValue({
   handle,
   targetRef: 'authorization-header',
-  fieldName: 'authorization',
+  fieldLabel: 'Authorization header',
   materializeValue,
   write: async (value) => {
     request.headers.authorization = `Bearer ${value}`;

@@ -7,8 +7,8 @@ import { createMagicPayClient } from '@mercuryo-ai/magicpay-sdk';
 
 const responses = new Map<string, Response>();
 responses.set(
-  'GET https://agents-api.mercuryo.io/functions/v1/api/memory-items',
-  new Response(JSON.stringify({ facts: { preferred_name: 'Ada' } }), {
+  'GET https://agents-api.mercuryo.io/functions/v1/api/memory-items?all_sites=true',
+  new Response(JSON.stringify({ items: [] }), {
     status: 200,
     headers: { 'content-type': 'application/json' },
   })
@@ -35,5 +35,5 @@ a fake `write` callback that records the value locally. Assert the returned
 status and avoid logging the recorded value.
 
 For `applyFill(...)` tests, keep the target writer as a small fake that records
-`targetRef`, `fieldName`, and `value`, then assert the result status and field
-outcomes.
+`targetRef`, `fieldRef` when present, the display `fieldLabel`, and `value`,
+then assert the result status and field outcomes.

@@ -1,5 +1,8 @@
 # Getting Started
 
+New to MagicPay? Read [Core Concepts](./concepts.md) first — it explains
+sessions, requests, handles vs values, and why fill is not commit.
+
 ## 1. Create a client
 
 ```ts
@@ -51,15 +54,15 @@ if (!result.ok) {
 
 Memory request kinds:
 
-| Kind | Use when |
-| --- | --- |
-| `memory.ask_before_use` | A stored Memory handle requires explicit use approval. |
-| `memory.provide_missing` | A needed field has no usable Memory handle yet. |
-| `memory.runtime_value` | The runtime needs one current-run value reference. |
-| `memory.choose_candidate` | Several Memory candidates can satisfy the same target. |
-| `memory.provider_reauth` | A provider-backed handle needs reauthentication. |
-| `memory.provider_unavailable` | A provider-backed handle cannot be used now. |
-| `memory.stale_target` | The target changed and the user must choose how to continue. |
+| Kind                          | Use when                                                     |
+| ----------------------------- | ------------------------------------------------------------ |
+| `memory.ask_before_use`       | A stored Memory handle requires explicit use approval.       |
+| `memory.provide_missing`      | A needed field has no usable Memory handle yet.              |
+| `memory.runtime_value`        | The runtime needs one current-run value reference.           |
+| `memory.choose_candidate`     | Several Memory candidates can satisfy the same target.       |
+| `memory.provider_reauth`      | A provider-backed handle needs reauthentication.             |
+| `memory.provider_unavailable` | A provider-backed handle cannot be used now.                 |
+| `memory.stale_target`         | The target changed and the user must choose how to continue. |
 
 ## 4. Save typed Memory when the value has a known shape
 
@@ -74,19 +77,19 @@ await client.memoryItems.create({
   askBeforeUse: true,
   fields: [
     {
-      name: 'full_name',
+      label: 'Full name',
       value: 'Dmitry Ivanov',
       valueType: 'person_name',
       hint: 'Full legal name for identity and booking forms',
     },
     {
-      name: 'date_of_birth',
+      label: 'Date of birth',
       value: '1990-05-10',
       valueType: 'date',
       hint: 'Date of birth in YYYY-MM-DD',
     },
     {
-      name: 'phone',
+      label: 'Phone',
       value: '+14155550100',
       valueType: 'phone_number',
       hint: 'Phone number in E.164 format',
@@ -98,6 +101,11 @@ await client.memoryItems.create({
 Omit `valueType` for ordinary direct fill. Public Memory CRUD rejects internal
 card value types; provider-backed payment cards expose card fill handles only
 through the session catalog after payment authorization.
+
+When editing saved Memory later, list or get the item first and use the
+returned `fieldRef` for existing fields. Field labels are human display and
+matcher evidence, not stable identity. `secret` / `isSecret` is mutable
+display/logging metadata for any field, not a value type or encryption mode.
 
 ## 5. Fill one known handle
 
@@ -144,8 +152,9 @@ const plan: FillPlan = {
   fields: [
     {
       targetRef: 'authorization-header',
-      fieldName: 'authorization',
       fieldRef: 'api.bearer_token',
+      fieldLabel: 'Bearer token',
+      fieldName: 'Authorization header',
       state: 'ready',
       valueHandle: 'handle_api_token',
     },
@@ -192,7 +201,7 @@ import { applyFill, planFill } from '@mercuryo-ai/magicpay-sdk/fill-plan-apply';
 
 const targetSet = {
   fingerprint: 'login-form-v1',
-  targets: [{ targetRef: 'email', label: 'Email', fieldName: 'email', writable: true }],
+  targets: [{ targetRef: 'email', label: 'Email', writable: true }],
   context: { url: 'https://airline.example.com/login' },
 };
 
@@ -206,7 +215,8 @@ const plan = await planFill({
       status: 'matched',
       targetRef: 'email',
       fieldRef: 'profile.email',
-      fieldName: 'email',
+      fieldLabel: 'Email',
+      fieldName: 'Email target',
       confidence: 'high',
     },
   ],

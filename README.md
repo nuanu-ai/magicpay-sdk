@@ -5,6 +5,13 @@
 TypeScript SDK for MagicPay workflow sessions, Memory, target-agnostic
 Memory fill, user-confirmed actions, and user choices.
 
+MagicPay lets a personal AI agent act on a user's behalf — sign in, fill
+checkout and identity forms, and pay — **without raw secrets, card numbers, or
+credentials ever entering the model's context**. Your runtime keeps the agent,
+the browser, and any provider calls; MagicPay owns the user's reusable data, the
+human approvals, and the value-free planning between them. New here? Start with
+[Core Concepts](./docs/concepts.md).
+
 Use this package from trusted Node or TypeScript code when your runtime needs
 to:
 
@@ -20,6 +27,26 @@ to:
 
 The SDK talks to the MagicPay API. Browser observation, UI, final business
 steps, and any provider calls remain in your runtime.
+
+## Core concepts
+
+The model the rest of this README assumes (full version in
+[Core Concepts](./docs/concepts.md)):
+
+- **Session** — the container for one workflow; create it, then complete it.
+- **Request** — a waitable, human-in-the-loop task. Your runtime creates and
+  waits; the user's MagicPay UI answers. A local `waitForResult` timeout is not
+  terminal.
+- **Handles, not values** — planning and catalogs carry opaque handles; raw
+  values are materialized only inside your callbacks, never logged or sent to a
+  model.
+- **Two "handles"** — a _request handle_ goes to `waitForResult(...)`; a _Memory
+  value handle_ (a string) goes to `materializeValue(...)`.
+- **`memoryItems` vs `memory`** — `client.memoryItems` is CRUD over saved
+  records (`list`, `get`, `create`, `update`, `delete`); `client.memory` is
+  waitable user requests.
+- **Fill is not commit** — fill helpers write values into targets but never
+  submit, pay, or book. Final commitment is a separate `client.actions` request.
 
 ## Install
 
@@ -38,12 +65,12 @@ https://agents-api.mercuryo.io/functions/v1/api
 
 ## Entrypoints
 
-| Entrypoint | Purpose |
-| --- | --- |
-| `@mercuryo-ai/magicpay-sdk` | Root client for sessions, Memory, Memory requests, actions, choices, and request waiting. |
-| `@mercuryo-ai/magicpay-sdk/core` | Lower-level helpers such as Memory catalog fetch and runtime materialization. |
+| Entrypoint                                  | Purpose                                                                                             |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `@mercuryo-ai/magicpay-sdk`                 | Root client for sessions, Memory, Memory requests, actions, choices, and request waiting.           |
+| `@mercuryo-ai/magicpay-sdk/core`            | Lower-level helpers such as Memory catalog fetch and runtime materialization.                       |
 | `@mercuryo-ai/magicpay-sdk/fill-plan-apply` | Target-agnostic Memory fill helpers: `fillMemoryValue(...)`, `applyFill(...)`, and `planFill(...)`. |
-| `@mercuryo-ai/magicpay-sdk/magicsearch` | MagicSearch client helpers. |
+| `@mercuryo-ai/magicpay-sdk/magicsearch`     | MagicSearch client helpers.                                                                         |
 
 ## Quick Start
 
@@ -242,18 +269,24 @@ if (applyResult.status !== 'filled' && applyResult.status !== 'partial') {
 
 ## Main Client Surface
 
-- `client.memoryItems.list(...)` lists value-free Memory item records with field names, hints, and read-only markers.
-- `client.memoryItems.create(...)` creates a Memory item with encrypted value handles.
-- `client.memoryItems.update(...)` patches an existing Memory item.
+- `client.memoryItems.list({ url })` lists value-free Memory item records for the current site; use `{ allSites: true }` only for explicit global review.
+- `client.memoryItems.get(itemId)` reads one value-free Memory item by stable item id.
+- `client.memoryItems.create(...)` creates a Memory item with human-readable field labels.
+- `client.memoryItems.update(itemId, ...)` patches an existing Memory item. Address existing fields by `fieldRef`, not by label.
+- `client.memoryItems.delete(itemId)` soft-deletes one editable Memory item.
 - A Memory item is a user-owned reusable record with a human-readable label and
   related fields. Use labels like `Airline login`, `Traveler profile`,
   `Home shipping address`, or `Facts about user`; do not put raw values in the
   label.
+- Field labels are human display and matcher evidence, not stable identity.
+  Use `fieldRef` for existing-field updates and deletes.
 - Memory item fields may include `valueType` / `value_type` when the stored
   value should be normalized for projection. Public editable value types are
   `date`, `phone_number`, and `person_name`. Omit the type for ordinary direct
   fill. Card value types are internal provider-backed fill types and are not
   accepted by public Memory CRUD.
+- `secret` / `isSecret` is mutable display and logging metadata for a field. It
+  is not a value type and not an encryption mode.
 - `client.memory.createRequest(sessionId, input)` creates a Memory request.
 - `client.memory.submitDecision(sessionId, requestId, input)` submits a Memory decision.
 - `client.memory.claim(sessionId, requestId)` claims a completed Memory request.
