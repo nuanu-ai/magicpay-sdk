@@ -3,7 +3,7 @@ import {
   type MagicPayGatewayConfig,
   type MagicPayMemoryRequestKind,
   type MagicPayMemoryRequestedField,
-} from '@mercuryo-ai/magicpay-sdk';
+} from '@nuanu-ai/magicpay-sdk';
 
 export interface RootClientBridgeInput {
   pageRef?: string;

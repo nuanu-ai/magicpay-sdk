@@ -93,7 +93,7 @@ Two namespaces, two jobs — the names are easy to mix up:
 
 ## Fill: plan / apply / value — and fill ≠ commit
 
-The fill helpers (`@mercuryo-ai/magicpay-sdk/fill-plan-apply`) write a Memory
+The fill helpers (`@nuanu-ai/magicpay-sdk/fill-plan-apply`) write a Memory
 value into any trusted target: an API header, a provider SDK call, a DB write,
 or a browser field. Three levels:
 
@@ -112,7 +112,7 @@ always a separate `client.actions` request the user confirms.
 
 When the agent has a purchase intent but no URL yet,
 `resolveMagicSearchForSession({ gateway, sessionId, query })`
-(`@mercuryo-ai/magicpay-sdk/magicsearch`) picks the best provider/checkout URL
+(`@nuanu-ai/magicpay-sdk/magicsearch`) picks the best provider/checkout URL
 and can raise a **choice request** when confidence is low, so the user disambiguates
 instead of the agent guessing. See [Integration Modes](./integration-modes.md#magicsearch).
 

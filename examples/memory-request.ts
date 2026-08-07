@@ -3,7 +3,7 @@ import {
   type MagicPayGatewayConfig,
   type MagicPayMemoryRequestedField,
   type MagicPayWaitForResultOptions,
-} from '@mercuryo-ai/magicpay-sdk';
+} from '@nuanu-ai/magicpay-sdk';
 
 export interface MemoryRequestExampleParams {
   gateway: MagicPayGatewayConfig;

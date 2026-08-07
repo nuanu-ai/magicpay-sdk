@@ -22,7 +22,7 @@ request id if another process may resume waiting later.
 Network and HTTP failures throw `MagicPayRequestError`.
 
 ```ts
-import { getMagicPayErrorDiagnostics, MagicPayRequestError } from '@mercuryo-ai/magicpay-sdk';
+import { getMagicPayErrorDiagnostics, MagicPayRequestError } from '@nuanu-ai/magicpay-sdk';
 
 try {
   await client.memory.createRequest(sessionId, input);

@@ -1,6 +1,6 @@
 # MagicPay SDK Docs
 
-This documentation is for integrators using `@mercuryo-ai/magicpay-sdk` from a
+This documentation is for integrators using `@nuanu-ai/magicpay-sdk` from a
 trusted Node or TypeScript runtime.
 
 The current runtime flow is:

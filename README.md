@@ -1,6 +1,6 @@
-# @mercuryo-ai/magicpay-sdk
+# @nuanu-ai/magicpay-sdk
 
-[![npm version](https://img.shields.io/npm/v/@mercuryo-ai/magicpay-sdk)](https://www.npmjs.com/package/@mercuryo-ai/magicpay-sdk) [![License](https://img.shields.io/badge/license-proprietary-red.svg)](LICENSE.md) [![Node.js >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
+[![npm version](https://img.shields.io/npm/v/@nuanu-ai/magicpay-sdk)](https://www.npmjs.com/package/@nuanu-ai/magicpay-sdk) [![License](https://img.shields.io/badge/license-proprietary-red.svg)](LICENSE.md) [![Node.js >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
 
 TypeScript SDK for MagicPay workflow sessions, Memory, target-agnostic
 Memory fill, user-confirmed actions, and user choices.
@@ -51,7 +51,7 @@ The model the rest of this README assumes (full version in
 ## Install
 
 ```bash
-npm i @mercuryo-ai/magicpay-sdk
+npm i @nuanu-ai/magicpay-sdk
 ```
 
 Create an API key at
@@ -67,15 +67,15 @@ https://agents-api.mercuryo.io/functions/v1/api
 
 | Entrypoint                                  | Purpose                                                                                             |
 | ------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `@mercuryo-ai/magicpay-sdk`                 | Root client for sessions, Memory, Memory requests, actions, choices, and request waiting.           |
-| `@mercuryo-ai/magicpay-sdk/core`            | Lower-level helpers such as Memory catalog fetch and runtime materialization.                       |
-| `@mercuryo-ai/magicpay-sdk/fill-plan-apply` | Target-agnostic Memory fill helpers: `fillMemoryValue(...)`, `applyFill(...)`, and `planFill(...)`. |
-| `@mercuryo-ai/magicpay-sdk/magicsearch`     | MagicSearch client helpers.                                                                         |
+| `@nuanu-ai/magicpay-sdk`                 | Root client for sessions, Memory, Memory requests, actions, choices, and request waiting.           |
+| `@nuanu-ai/magicpay-sdk/core`            | Lower-level helpers such as Memory catalog fetch and runtime materialization.                       |
+| `@nuanu-ai/magicpay-sdk/fill-plan-apply` | Target-agnostic Memory fill helpers: `fillMemoryValue(...)`, `applyFill(...)`, and `planFill(...)`. |
+| `@nuanu-ai/magicpay-sdk/magicsearch`     | MagicSearch client helpers.                                                                         |
 
 ## Quick Start
 
 ```ts
-import { createMagicPayClient } from '@mercuryo-ai/magicpay-sdk';
+import { createMagicPayClient } from '@nuanu-ai/magicpay-sdk';
 
 const client = createMagicPayClient({
   gateway: {
@@ -128,8 +128,8 @@ Use `fillMemoryValue(...)` when your code already knows the handle. The value
 exists only inside your `materializeValue` and `write` callbacks.
 
 ```ts
-import { materializeMemoryValues } from '@mercuryo-ai/magicpay-sdk/core';
-import { fillMemoryValue } from '@mercuryo-ai/magicpay-sdk/fill-plan-apply';
+import { materializeMemoryValues } from '@nuanu-ai/magicpay-sdk/core';
+import { fillMemoryValue } from '@nuanu-ai/magicpay-sdk/fill-plan-apply';
 
 await fillMemoryValue({
   handle: 'handle_api_token',
@@ -154,8 +154,8 @@ come from your own code, a stored artifact, or `planFill(...)`. The plan must
 contain handles, not raw values.
 
 ```ts
-import { materializeMemoryValues } from '@mercuryo-ai/magicpay-sdk/core';
-import { applyFill, type FillPlan } from '@mercuryo-ai/magicpay-sdk/fill-plan-apply';
+import { materializeMemoryValues } from '@nuanu-ai/magicpay-sdk/core';
+import { applyFill, type FillPlan } from '@nuanu-ai/magicpay-sdk/fill-plan-apply';
 
 const plan: FillPlan = {
   id: 'api-auth-plan',
@@ -204,8 +204,8 @@ the catalog keeps `valueVisibility: 'handles_only'` and reports the card under
 `unavailable` with `availability.status: 'authorization_required'`.
 
 ```ts
-import { fetchMemoryCatalog, materializeMemoryValues } from '@mercuryo-ai/magicpay-sdk/core';
-import { applyFill, planFill } from '@mercuryo-ai/magicpay-sdk/fill-plan-apply';
+import { fetchMemoryCatalog, materializeMemoryValues } from '@nuanu-ai/magicpay-sdk/core';
+import { applyFill, planFill } from '@nuanu-ai/magicpay-sdk/fill-plan-apply';
 
 const targetSet = {
   fingerprint: 'login-form-v1',

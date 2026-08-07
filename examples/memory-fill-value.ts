@@ -1,10 +1,10 @@
-import { materializeMemoryValues } from '@mercuryo-ai/magicpay-sdk/core';
-import type { MagicPayGatewayConfig } from '@mercuryo-ai/magicpay-sdk';
+import { materializeMemoryValues } from '@nuanu-ai/magicpay-sdk/core';
+import type { MagicPayGatewayConfig } from '@nuanu-ai/magicpay-sdk';
 import {
   fillMemoryValue,
   type FillMemoryValueResult,
   type TargetValueWriteResult,
-} from '@mercuryo-ai/magicpay-sdk/fill-plan-apply';
+} from '@nuanu-ai/magicpay-sdk/fill-plan-apply';
 
 export interface MemoryFillValueExampleParams {
   gateway: MagicPayGatewayConfig;

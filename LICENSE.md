@@ -1,6 +1,6 @@
 # Proprietary Commercial SDK License
 
-This license governs the use and distribution of the `@mercuryo-ai/magicpay-sdk`
+This license governs the use and distribution of the `@nuanu-ai/magicpay-sdk`
 package and its accompanying documentation materials (collectively, the
 "SDK").
 

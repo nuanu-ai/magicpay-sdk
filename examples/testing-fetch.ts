@@ -1,7 +1,7 @@
 import {
   createMagicPayClient,
   type MagicPayGatewayConfig,
-} from '@mercuryo-ai/magicpay-sdk';
+} from '@nuanu-ai/magicpay-sdk';
 
 export function createMagicPayTestClient(params: {
   gateway?: MagicPayGatewayConfig;

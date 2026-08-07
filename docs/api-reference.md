@@ -3,7 +3,7 @@
 ## `createMagicPayClient(options)`
 
 ```ts
-import { createMagicPayClient } from '@mercuryo-ai/magicpay-sdk';
+import { createMagicPayClient } from '@nuanu-ai/magicpay-sdk';
 
 const client = createMagicPayClient({
   gateway: {
@@ -255,7 +255,7 @@ await client.sessions.completeWithOutcome(created.session.id, {
 ## Core Memory Helpers
 
 ```ts
-import { fetchMemoryCatalog, materializeMemoryValues } from '@mercuryo-ai/magicpay-sdk/core';
+import { fetchMemoryCatalog, materializeMemoryValues } from '@nuanu-ai/magicpay-sdk/core';
 
 const catalog = await fetchMemoryCatalog(gateway, sessionId, targetUrl);
 const values = await materializeMemoryValues(gateway, sessionId, ['handle_email']);
@@ -293,7 +293,7 @@ import {
   parseFillPlan,
   planFill,
   validateFillPlan,
-} from '@mercuryo-ai/magicpay-sdk/fill-plan-apply';
+} from '@nuanu-ai/magicpay-sdk/fill-plan-apply';
 ```
 
 ### `fillMemoryValue(input)`

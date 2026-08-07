@@ -1,5 +1,5 @@
-import { fetchMemoryCatalog, materializeMemoryValues } from '@mercuryo-ai/magicpay-sdk/core';
-import type { MagicPayGatewayConfig } from '@mercuryo-ai/magicpay-sdk';
+import { fetchMemoryCatalog, materializeMemoryValues } from '@nuanu-ai/magicpay-sdk/core';
+import type { MagicPayGatewayConfig } from '@nuanu-ai/magicpay-sdk';
 import {
   applyFill,
   planFill,
@@ -8,7 +8,7 @@ import {
   type FillTargetDescriptor,
   type TargetValueWriter,
   type ValueFreeMemoryCatalogSnapshot,
-} from '@mercuryo-ai/magicpay-sdk/fill-plan-apply';
+} from '@nuanu-ai/magicpay-sdk/fill-plan-apply';
 
 export interface MemoryPlanApplyExampleParams {
   gateway: MagicPayGatewayConfig;

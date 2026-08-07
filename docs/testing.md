@@ -3,7 +3,7 @@
 Inject `fetchImpl` to test SDK integrations without live network calls.
 
 ```ts
-import { createMagicPayClient } from '@mercuryo-ai/magicpay-sdk';
+import { createMagicPayClient } from '@nuanu-ai/magicpay-sdk';
 
 const responses = new Map<string, Response>();
 responses.set(
