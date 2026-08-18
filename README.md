@@ -17,10 +17,11 @@ raw secrets never enter the model's context.**
 
 ---
 
-Your agent signs in, fills checkout and identity forms, and pays on the user's
-behalf. MagicPay holds the user's reusable data and every human approval;
-planning runs on opaque handles, and raw values are materialized only between
-your own callbacks — never logged, never shown to a model. Your runtime keeps
+MagicPay sits between an AI agent and the person it works for. The agent signs
+in, fills checkout and identity forms, and pays; that person — the user — keeps
+their reusable data and every approval with MagicPay, not with the agent.
+Planning runs on opaque handles, and raw values are materialized only between
+your own callbacks: never logged, never shown to a model. Your runtime keeps
 the agent, the browser, and all provider calls.
 
 ```ts
@@ -35,7 +36,7 @@ const gateway = {
 const agent = await getAuthenticatedAgent(gateway);
 console.info(`Authenticated as ${agent.name} (status: ${agent.status})`);
 
-// Then a client owns sessions, Memory, approvals, and waiting.
+// A client then handles sessions, Memory, approvals, and waiting.
 const client = createMagicPayClient({ gateway });
 ```
 
@@ -46,7 +47,7 @@ sequenceDiagram
     participant R as Your runtime
     participant S as MagicPay SDK
     participant API as MagicPay API
-    participant U as User's approval UI
+    participant U as The user's MagicPay UI
     R->>S: plan a fill / create a request (handles only)
     S->>API: request with opaque handles
     API->>U: ask the user to approve or provide
@@ -156,8 +157,9 @@ try {
 }
 ```
 
-The runnable version — env vars, readable failure, non-zero exit — is
-[`examples/hello-world.ts`](https://github.com/nuanu-ai/magicpay-sdk/blob/main/examples/hello-world.ts).
+[`examples/hello-world.ts`](https://github.com/nuanu-ai/magicpay-sdk/blob/main/examples/hello-world.ts)
+is the runnable version: it reads the env vars and exits non-zero with a
+readable message when the key is wrong.
 
 ### Step 1 — create a session and ask the user
 
@@ -390,7 +392,7 @@ if (applyResult.status !== 'filled' && applyResult.status !== 'partial') {
 }
 ```
 
-## Main Client Surface
+## Client overview
 
 - `client.memoryItems.list({ url })` lists value-free Memory item records for the current site; use `{ allSites: true }` only for explicit global review.
 - `client.memoryItems.get(itemId)` reads one value-free Memory item by stable item id.
