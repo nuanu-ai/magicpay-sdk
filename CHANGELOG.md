@@ -100,6 +100,9 @@ and the package adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Guides and runnable examples point at the branded production API URL,
+  `https://api.magicpay.nuanu.ai/functions/v1/api`, instead of the raw
+  hosting-project hostname.
 - The npm artifact no longer ships `.d.ts.map` files that pointed at absent
   sources, and declares `sideEffects: false` for bundlers. The tarball drops
   from 142 to 101 files.

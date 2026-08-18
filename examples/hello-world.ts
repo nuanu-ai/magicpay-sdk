@@ -14,7 +14,7 @@ import {
   isMagicPayRequestErrorStatus,
 } from '@nuanu-ai/magicpay-sdk';
 
-const DEFAULT_API_URL = 'https://durcottggsiesxxqzvbb.supabase.co/functions/v1/api';
+const DEFAULT_API_URL = 'https://api.magicpay.nuanu.ai/functions/v1/api';
 
 async function main(): Promise<number> {
   const apiKey = process.env.MAGICPAY_API_KEY;

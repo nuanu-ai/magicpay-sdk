@@ -11,7 +11,7 @@ import { createMagicPayClient } from '@nuanu-ai/magicpay-sdk';
 export const client = createMagicPayClient({
   gateway: {
     apiKey: process.env.MAGICPAY_API_KEY!,
-    apiUrl: 'https://durcottggsiesxxqzvbb.supabase.co/functions/v1/api',
+    apiUrl: 'https://api.magicpay.nuanu.ai/functions/v1/api',
   },
 });
 ```

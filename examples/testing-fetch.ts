@@ -7,7 +7,7 @@ export function createMagicPayTestClient(params: {
   return createMagicPayClient({
     gateway: params.gateway ?? {
       apiKey: 'test_api_key',
-      apiUrl: 'https://durcottggsiesxxqzvbb.supabase.co/functions/v1/api',
+      apiUrl: 'https://api.magicpay.nuanu.ai/functions/v1/api',
     },
     fetchImpl: async (input: RequestInfo | URL, init: RequestInit = {}) => {
       const method = (init.method ?? 'GET').toUpperCase();
