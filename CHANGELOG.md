@@ -21,6 +21,42 @@ and the package adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- The setup flow validates what it persists. `verifyMagicPaySetup` ran on a
+  separate transport helper that never validated 2xx bodies, so a 200 that
+  reported its own failure (`success: false`) still handed the caller an API
+  key to store, a blank key was persisted as configured, and a missing
+  `gateway.api_url` silently rebound the credential to the default gateway.
+  Both setup calls now require the complete documented contract.
+- The Memory catalog fails closed. `fetchMemoryCatalog` accepted any 2xx body
+  and normalized it into a structurally complete catalog — an error body
+  became an empty catalog, and a handle whose `ask_before_use` consent flag
+  was missing kept its secret usable with the confirmation gate silently
+  gone. The response is now validated per handle (item ref, value handle,
+  boolean consent flag) before normalization, and a downgraded
+  `value_visibility` is a malformed response instead of being overwritten.
+- Claimed request artifacts are validated per kind before they become "the
+  request was fulfilled": a values artifact must carry its values record, a
+  signature its signer, a confirmation its `confirmed: true`, and an unknown
+  or empty artifact is a malformed response instead of a success with holes.
+  Session-stop notices must carry their canceled status and reason code, and
+  the runtime request envelope requires the server-guaranteed `otp_available`
+  flag — previously its absence silently read as "OTP unavailable" and
+  removed an approval channel the user was entitled to.
+- Hosted-link responses validate the full link and routing contract, so a
+  top-up or review link with no id, expiry, or surfaces fails instead of
+  reporting a usable link.
+- The payment-result reader validates the complete response contract. A 200
+  body carrying only `{"status": "succeeded"}` — no session binding, no
+  settlement evidence — previously parsed as a result and could surface as
+  "the payment is confirmed" downstream; it now fails as `malformed_response`,
+  and statuses or evidence sources outside the documented sets fail closed
+  the same way.
+- Key revocation no longer trusts an arbitrary 200 body. The endpoint promises
+  exactly `{success: true, status: "revoked"}`, and anything else — an empty
+  object included — is a `malformed_response` instead of a reported success.
+- `getAuthenticatedAgent` requires the documented profile contract (name,
+  status, timestamps, limits, memory policies), so a body with only an id
+  fails instead of producing a profile with undefined fields.
 - Errors thrown for Memory materialization requests no longer retain the
   response body, parsed payload, or server-provided message. Those responses
   can carry runtime-only values, and the previous behavior could put them into
@@ -29,6 +65,26 @@ and the package adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A repeated completion of an already-terminal session parses again. The
+  event-envelope reader required `event` unconditionally, but the server
+  legitimately returns a 200 without one for the idempotent
+  already-closed-same-status retry; `event` is now nullable, validated when
+  present, and `duplicate` is required as a boolean.
+- Session envelopes require `last_event_seq`, the event-sequencing anchor the
+  CLI persists into workflow state. A response without it previously wrote
+  `undefined` into the state file and could silently drop the
+  payment-submission evidence marker that guards reservation release.
+- Decision submissions parse the runtime request envelope instead of
+  accepting any JSON object as a recorded approve/deny.
+- Account and Memory readers validate what their callers read instead of the
+  container alone: card listings require each card's id, number, status, and
+  currency (and recognize the `ulc_v1` source); paginated transaction
+  responses require a numeric `limit` and a string-or-null `next_page`; agent
+  profile stats, when present, must carry their three numbers; the Memory
+  item list requires `items` with per-item ids rather than reading an absent
+  list as an empty library; and `updateMemoryItem` requires the server's
+  `created_new_item: false` confirmation that the update did not fork a new
+  item.
 - `planFill` fails closed when one field matches several catalog handles after
   role filtering. It now returns a `conflict` with the candidates instead of
   silently picking the first entry, which could fill a subject-bound field
