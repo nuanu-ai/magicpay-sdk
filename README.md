@@ -1,29 +1,72 @@
-# @nuanu-ai/magicpay-sdk
+<div align="center">
+
+# MagicPay SDK
+
+**Payments, identity, and human approvals for AI agents —
+raw secrets never enter the model's context.**
 
 [![npm version](https://img.shields.io/npm/v/@nuanu-ai/magicpay-sdk)](https://www.npmjs.com/package/@nuanu-ai/magicpay-sdk) [![License](https://img.shields.io/badge/license-proprietary-red.svg)](LICENSE.md) [![Node.js >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
 
-TypeScript SDK for MagicPay workflow sessions, Memory, target-agnostic
-Memory fill, user-confirmed actions, and user choices.
+[Getting Started](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/getting-started.md) ·
+[API Reference](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/api-reference.md) ·
+[Core Concepts](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/concepts.md) ·
+[Examples](https://github.com/nuanu-ai/magicpay-sdk/blob/main/examples/README.md) ·
+[Changelog](CHANGELOG.md)
 
-MagicPay lets a personal AI agent act on a user's behalf — sign in, fill
-checkout and identity forms, and pay — **without raw secrets, card numbers, or
-credentials ever entering the model's context**. Your runtime keeps the agent,
-the browser, and any provider calls; MagicPay owns the user's reusable data, the
-human approvals, and the value-free planning between them. New here? Start with
-[Core Concepts](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/concepts.md).
+</div>
 
-Use this package from trusted Node or TypeScript code when your runtime needs
-to:
+---
 
-- read or save reusable Memory;
-- ask the user for a Memory decision or missing Memory value;
-- fill any trusted runtime target from runtime-only Memory handles, for example
-  API headers, provider SDK calls, or browser fields;
-- detect that a provider-backed payment card exists but needs payment
-  authorization before card handles can be revealed;
-- ask the user to confirm an action;
-- ask the user to choose from runtime-provided options;
-- wait for request results without writing polling code.
+Your agent signs in, fills checkout and identity forms, and pays on the user's
+behalf. MagicPay holds the user's reusable data and every human approval;
+planning runs on opaque handles, and raw values are materialized only between
+your own callbacks — never logged, never shown to a model. Your runtime keeps
+the agent, the browser, and all provider calls.
+
+```ts
+import { createMagicPayClient, getAuthenticatedAgent } from '@nuanu-ai/magicpay-sdk';
+
+const gateway = {
+  apiKey: process.env.MAGICPAY_API_KEY!,
+  apiUrl: process.env.MAGICPAY_API_URL!,
+};
+
+// Step 0: one round trip proves the key works.
+const agent = await getAuthenticatedAgent(gateway);
+console.info(`Authenticated as ${agent.name} (status: ${agent.status})`);
+
+// Then a client owns sessions, Memory, approvals, and waiting.
+const client = createMagicPayClient({ gateway });
+```
+
+## How it works
+
+```mermaid
+sequenceDiagram
+    participant R as Your runtime
+    participant S as MagicPay SDK
+    participant API as MagicPay API
+    participant U as User's approval UI
+    R->>S: plan a fill / create a request (handles only)
+    S->>API: request with opaque handles
+    API->>U: ask the user to approve or provide
+    U-->>API: approval or value
+    S-->>R: result with handles, statuses, reasons
+    R->>S: materializeValue(handle)
+    S-->>R: raw value, passed straight to your writer
+    Note over R,S: the raw value lives only between your callbacks
+```
+
+## What you can do
+
+- **Read and save reusable Memory** — `client.memoryItems` is CRUD over saved
+  records; `client.memory` asks the user and waits for the answer.
+- **Fill any trusted target from runtime-only handles** — API headers, provider
+  SDK calls, or browser fields; filling never submits, pays, or books.
+- **Detect provider-backed payment cards** that need the user's payment
+  authorization before card handles can be revealed.
+- **Ask the user to confirm an action or choose an option** and wait for the
+  result without writing polling code.
 
 The SDK talks to the MagicPay API. Browser observation, UI, final business
 steps, and any provider calls remain in your runtime.
@@ -42,9 +85,6 @@ The model the rest of this README assumes (full version in
   model.
 - **Two "handles"** — a _request handle_ goes to `waitForResult(...)`; a _Memory
   value handle_ (a string) goes to `materializeValue(...)`.
-- **`memoryItems` vs `memory`** — `client.memoryItems` is CRUD over saved
-  records (`list`, `get`, `create`, `update`, `delete`); `client.memory` is
-  waitable user requests.
 - **Fill is not commit** — fill helpers write values into targets but never
   submit, pay, or book. Final commitment is a separate `client.actions` request.
 
@@ -55,13 +95,11 @@ npm i @nuanu-ai/magicpay-sdk
 ```
 
 Create an API key at
-[`app.magiccard.ai/signup`](https://app.magiccard.ai/signup).
-
-Default API base URL:
-
-```text
-https://durcottggsiesxxqzvbb.supabase.co/functions/v1/api
-```
+[`app.magiccard.ai/signup`](https://app.magiccard.ai/signup); the API base URL
+for your workspace comes with it. Export both as `MAGICPAY_API_KEY` and
+`MAGICPAY_API_URL` — the
+[Getting Started](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/getting-started.md)
+guide shows the current values.
 
 ## Requirements
 
@@ -105,7 +143,7 @@ import {
 try {
   const agent = await getAuthenticatedAgent({
     apiKey: process.env.MAGICPAY_API_KEY!,
-    apiUrl: 'https://durcottggsiesxxqzvbb.supabase.co/functions/v1/api',
+    apiUrl: process.env.MAGICPAY_API_URL!,
   });
 
   console.info(`Authenticated as ${agent.name} (status: ${agent.status})`);
@@ -129,7 +167,7 @@ import { createMagicPayClient } from '@nuanu-ai/magicpay-sdk';
 const client = createMagicPayClient({
   gateway: {
     apiKey: process.env.MAGICPAY_API_KEY!,
-    apiUrl: 'https://durcottggsiesxxqzvbb.supabase.co/functions/v1/api',
+    apiUrl: process.env.MAGICPAY_API_URL!,
   },
 });
 
