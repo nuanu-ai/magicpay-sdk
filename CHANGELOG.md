@@ -5,7 +5,19 @@ All notable changes to `@nuanu-ai/magicpay-sdk` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the package adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.2.3] - Unreleased
+## [0.3.0] - Unreleased
+
+### Breaking
+
+- The root entrypoint is curated down to nine runtime exports and the types
+  the guides speak in: the client, `getAuthenticatedAgent`, and the two thrown
+  error classes with their helpers. The other ninety-eight root re-exports
+  moved unchanged to their subpath homes — `/core` (Memory items, client
+  capabilities, polling primitives, value types, country options, target
+  signatures), `/payment-operations`, `/magicsearch`, `/fill-plan-apply`,
+  `/subscription-approval`, `/session-client`, `/session-flow`, and
+  `/memory-decisions`. A test pins the root export list, so widening it back
+  is a reviewed decision, not a merge side effect.
 
 ### Security
 
