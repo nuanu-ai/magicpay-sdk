@@ -5,7 +5,7 @@
 **Payments, identity, and human approvals for AI agents —
 raw secrets never enter the model's context.**
 
-[![npm version](https://img.shields.io/npm/v/@nuanu-ai/magicpay-sdk)](https://www.npmjs.com/package/@nuanu-ai/magicpay-sdk) [![License](https://img.shields.io/badge/license-proprietary-red.svg)](LICENSE.md) [![Node.js >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
+[![npm version](https://img.shields.io/npm/v/@nuanu-ai/magicpay-sdk)](https://www.npmjs.com/package/@nuanu-ai/magicpay-sdk) [![TypeScript](https://img.shields.io/badge/types-TypeScript-3178c6.svg)](https://www.typescriptlang.org) [![Node.js >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org) [![ESM only](https://img.shields.io/badge/module-ESM%20only-f7df1e.svg)](#requirements) [![License](https://img.shields.io/badge/license-proprietary-lightgrey.svg)](LICENSE.md)
 
 [Getting Started](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/getting-started.md) ·
 [API Reference](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/api-reference.md) ·
