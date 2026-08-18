@@ -10,7 +10,7 @@ export interface MemoryFillValueExampleParams {
   gateway: MagicPayGatewayConfig;
   sessionId: string;
   handle: string;
-  write: (value: string) => Promise<TargetValueWriteResult | void> | TargetValueWriteResult | void;
+  write: (value: string) => Promise<TargetValueWriteResult> | TargetValueWriteResult;
 }
 
 export async function fillOneMemoryValue(

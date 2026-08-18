@@ -10,7 +10,7 @@ checkout and identity forms, and pay — **without raw secrets, card numbers, or
 credentials ever entering the model's context**. Your runtime keeps the agent,
 the browser, and any provider calls; MagicPay owns the user's reusable data, the
 human approvals, and the value-free planning between them. New here? Start with
-[Core Concepts](./docs/concepts.md).
+[Core Concepts](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/concepts.md).
 
 Use this package from trusted Node or TypeScript code when your runtime needs
 to:
@@ -31,7 +31,7 @@ steps, and any provider calls remain in your runtime.
 ## Core concepts
 
 The model the rest of this README assumes (full version in
-[Core Concepts](./docs/concepts.md)):
+[Core Concepts](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/concepts.md)):
 
 - **Session** — the container for one workflow; create it, then complete it.
 - **Request** — a waitable, human-in-the-loop task. Your runtime creates and
@@ -55,13 +55,27 @@ npm i @nuanu-ai/magicpay-sdk
 ```
 
 Create an API key at
-[`agents.mercuryo.io/signup`](https://agents.mercuryo.io/signup).
+[`app.magiccard.ai/signup`](https://app.magiccard.ai/signup).
 
 Default API base URL:
 
 ```text
-https://agents-api.mercuryo.io/functions/v1/api
+https://durcottggsiesxxqzvbb.supabase.co/functions/v1/api
 ```
+
+## Requirements
+
+- Node.js >= 18.
+- ESM only. There is no CommonJS build, so `require('@nuanu-ai/magicpay-sdk')`
+  fails. CommonJS callers must use dynamic
+  `await import('@nuanu-ai/magicpay-sdk')`.
+- TypeScript 5.x with `"moduleResolution"` set to `"node16"`, `"nodenext"`, or
+  `"bundler"`. Older resolution modes do not read the package `exports` map.
+
+## Versioning
+
+This package is still `0.x`. Minor versions may include breaking changes until
+`1.0`. Pin an exact version and re-check the release notes before upgrading.
 
 ## Entrypoints
 
@@ -74,13 +88,48 @@ https://agents-api.mercuryo.io/functions/v1/api
 
 ## Quick Start
 
+### Step 0 — verify your key
+
+`getAuthenticatedAgent(...)` reads the agent your API key belongs to. Make it
+the first call in a new integration: a wrong key, a revoked key, or the wrong
+API base URL fails here, in one round trip, instead of somewhere inside a
+session flow.
+
+```ts
+import {
+  getAuthenticatedAgent,
+  getMagicPayErrorMessage,
+  isMagicPayRequestErrorStatus,
+} from '@nuanu-ai/magicpay-sdk';
+
+try {
+  const agent = await getAuthenticatedAgent({
+    apiKey: process.env.MAGICPAY_API_KEY!,
+    apiUrl: 'https://durcottggsiesxxqzvbb.supabase.co/functions/v1/api',
+  });
+
+  console.info(`Authenticated as ${agent.name} (status: ${agent.status})`);
+} catch (error) {
+  if (isMagicPayRequestErrorStatus(error, 401)) {
+    throw new Error(`MagicPay rejected the API key: ${getMagicPayErrorMessage(error)}`);
+  }
+
+  throw error;
+}
+```
+
+The runnable version — env vars, readable failure, non-zero exit — is
+[`examples/hello-world.ts`](https://github.com/nuanu-ai/magicpay-sdk/blob/main/examples/hello-world.ts).
+
+### Step 1 — create a session and ask the user
+
 ```ts
 import { createMagicPayClient } from '@nuanu-ai/magicpay-sdk';
 
 const client = createMagicPayClient({
   gateway: {
     apiKey: process.env.MAGICPAY_API_KEY!,
-    apiUrl: 'https://agents-api.mercuryo.io/functions/v1/api',
+    apiUrl: 'https://durcottggsiesxxqzvbb.supabase.co/functions/v1/api',
   },
 });
 
@@ -103,17 +152,31 @@ const handle = await client.memory.createRequest(session.id, {
 const result = await client.memory.waitForResult(session.id, handle);
 
 if (!result.ok) {
-  throw new Error(result.reason);
-}
-
-if (result.artifact.kind !== 'reference') {
+  switch (result.reason) {
+    case 'denied':
+      // The user refused. A business outcome, not a failure.
+      await yourRuntime.continueWithoutSavedEmail();
+      break;
+    case 'timeout':
+      // Local waiter timeout only — the request is still open in the user's
+      // MagicPay UI. Keep the request id and resume waiting from any process.
+      await yourRuntime.resumeRequestLater(session.id, result.requestId);
+      break;
+    default:
+      // 'expired' | 'failed' | 'canceled' are terminal.
+      throw new Error(`Memory request ${result.reason}`);
+  }
+} else if (result.artifact.kind === 'reference') {
+  await yourRuntime.continueWithMemoryReference(result.artifact.reference);
+} else {
   throw new Error(`Unexpected artifact kind: ${result.artifact.kind}`);
 }
-
-await yourRuntime.continueWithMemoryReference(result.artifact.reference, facts);
 ```
 
-Memory request results return references, not reusable raw values.
+Memory request results return references, not reusable raw values. Only
+`denied`, `expired`, `failed`, and `canceled` are terminal; `timeout` means the
+local waiter gave up, not the user — see
+[Waiting for results](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/api-reference.md#waiting-for-results).
 
 ## Memory Fill
 
@@ -142,10 +205,21 @@ await fillMemoryValue({
     return String(entry.value ?? entry.text ?? '');
   },
   write: async (value) => {
-    request.headers.authorization = `Bearer ${value}`;
+    const expected = `Bearer ${value}`;
+    request.headers.authorization = expected;
+    return request.headers.authorization === expected
+      ? { status: 'filled', verification: { verified: true, strategy: 'exact' } }
+      : { status: 'blocked', reason: 'postcondition_mismatch' };
   },
 });
 ```
+
+`write` must re-read the destination and return value-free verification. A
+void or unverified result fails closed and is never recorded as complete.
+Browser-backed writers that need resumable persistence should also return a
+`scope` captured immediately after that write: current `pageRef`,
+`documentRef`, and a screened origin+pathname `pageUrl`. Unscoped completions
+remain valid for one-shot SDK use but cannot authorize CLI resume.
 
 ### Apply A Ready Plan
 
@@ -187,8 +261,11 @@ const applyResult = await applyFill({
   },
   targetWriter: {
     async write({ value }) {
-      request.headers.authorization = `Bearer ${value}`;
-      return { status: 'filled' };
+      const expected = `Bearer ${value}`;
+      request.headers.authorization = expected;
+      return request.headers.authorization === expected
+        ? { status: 'filled', verification: { verified: true, strategy: 'exact' } }
+        : { status: 'blocked', reason: 'postcondition_mismatch' };
     },
   },
 });
@@ -203,13 +280,18 @@ until payment authorization succeeds in the active session. Before approval,
 the catalog keeps `valueVisibility: 'handles_only'` and reports the card under
 `unavailable` with `availability.status: 'authorization_required'`.
 
+Each target is a `FillTargetDescriptor`. It is free text by default; set
+`writeCapability` to `{ kind: 'choice', options }` for a select target,
+`{ kind: 'toggle' }` for a checkbox or switch, or
+`{ kind: 'unavailable', reason }` for one that cannot be written.
+
 ```ts
 import { fetchMemoryCatalog, materializeMemoryValues } from '@nuanu-ai/magicpay-sdk/core';
 import { applyFill, planFill } from '@nuanu-ai/magicpay-sdk/fill-plan-apply';
 
 const targetSet = {
   fingerprint: 'login-form-v1',
-  targets: [{ targetRef: 'email', label: 'Email', fieldName: 'email', writable: true }],
+  targets: [{ targetRef: 'email', label: 'Email', fieldName: 'email' }],
   context: { url: 'https://airline.example.com/login' },
 };
 
@@ -257,7 +339,10 @@ const applyResult = await applyFill({
   targetWriter: {
     async write(input) {
       await yourBrowser.fill(input.targetRef, input.value);
-      return { status: 'filled' };
+      const observed = await yourBrowser.readValue(input.targetRef);
+      return observed === input.value
+        ? { status: 'filled', verification: { verified: true, strategy: 'exact' } }
+        : { status: 'blocked', reason: 'postcondition_mismatch' };
     },
   },
 });
@@ -293,8 +378,27 @@ if (applyResult.status !== 'filled' && applyResult.status !== 'partial') {
 - `client.memory.waitForResult(sessionId, handle)` waits and claims.
 - `client.actions.run(...)` and `client.actions.waitForResult(...)` handle user-confirmed actions.
 - `client.choice.request(...)` and `client.choice.waitForResult(...)` handle option selection.
+- `client.requests.waitForStatus(sessionId, handle, { mode: 'follow_request' })`
+  observes one exact request without claiming it. The shared defaults are a
+  three-second cadence, 15-second safe heartbeats, 90 seconds of observation
+  grace after request expiry, and a 35-minute client safety ceiling. It returns
+  typed pending results for a diagnostic timeout, abort, server-deadline
+  overrun, or client safety deadline; these are not terminal decisions.
+  Server expiry governs only `waiting_user`; persisted `approved`/`executing`
+  work ignores the original approval expiry and remains resumable under the
+  independent 35-minute client safety deadline. Each observation composes the
+  caller abort signal and uses the smaller of the existing five-minute
+  transport ceiling and the remaining logical deadline.
 - `client.requests.waitForResult(...)` waits on non-Memory request handles.
 - `client.sessions.*` creates, reads, describes, and completes workflow sessions.
 
-See [Getting Started](./docs/getting-started.md), [API Reference](./docs/api-reference.md),
-and [Examples](./docs/examples.md) for the full integration guide.
+Use `follow_request` for agent handoffs. Preserve the request id and resume the
+same poll after a host interruption. After either safety deadline, reconcile
+once with the API and report a still-overdue request rather than starting
+another unbounded poll or creating a replacement request. A browser action and
+a user-request poll are separate operations: finish or return from the browser
+operation before starting the standalone poll, so a browser action's wall-clock
+deadline cannot kill an approval already in progress.
+
+See [Getting Started](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/getting-started.md), [API Reference](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/api-reference.md),
+and [Examples](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/examples.md) for the full integration guide.

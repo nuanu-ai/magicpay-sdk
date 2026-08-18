@@ -11,13 +11,18 @@ import { createMagicPayClient } from '@nuanu-ai/magicpay-sdk';
 export const client = createMagicPayClient({
   gateway: {
     apiKey: process.env.MAGICPAY_API_KEY!,
-    apiUrl: 'https://agents-api.mercuryo.io/functions/v1/api',
+    apiUrl: 'https://durcottggsiesxxqzvbb.supabase.co/functions/v1/api',
   },
 });
 ```
 
 The SDK is intended for trusted runtime code. Do not expose the API key to an
 untrusted browser.
+
+Before wiring anything else, confirm the key works: `getAuthenticatedAgent(...)`
+returns the agent the key belongs to, and throws a `MagicPayRequestError` with
+`status: 401` when the key is wrong or revoked. The runnable version of that
+check is [`examples/hello-world.ts`](../examples/hello-world.ts).
 
 ## 2. Create a session
 
@@ -48,9 +53,32 @@ const handle = await client.memory.createRequest(session.id, {
 const result = await client.memory.waitForResult(session.id, handle);
 
 if (!result.ok) {
-  throw new Error(result.reason);
+  if (result.reason === 'timeout') {
+    // Local waiter timeout — not terminal. The request is still open in the
+    // user's MagicPay UI: persist result.requestId and resume waiting later.
+    await yourRuntime.resumeRequestLater(session.id, result.requestId);
+  } else if (result.reason === 'denied') {
+    // The user refused: a business outcome, not a failure.
+    await yourRuntime.continueWithoutSavedEmail();
+  } else {
+    // 'expired' | 'failed' | 'canceled' are terminal.
+    throw new Error(`Memory request ${result.reason}`);
+  }
 }
 ```
+
+`waitForResult(...)` waits up to 5 minutes by default and polls every 3 seconds;
+pass `timeoutMs`, `intervalMs`, or an `AbortSignal` to change that — see
+[Waiting for results](./api-reference.md#waiting-for-results).
+
+Nothing in your process answers this request. Your runtime only creates it and
+waits; the person answers it in their own MagicPay UI — web, mobile, or a chat
+surface such as ChatGPT, Claude, or Telegram — where it appears with the context
+you sent. `submitDecision(...)` and `claim(...)` are the answering side's calls,
+so a runtime integration normally never uses them; a test harness that plays
+both sides is the exception (see [Testing](./testing.md)). Because a human is on
+the other end, minutes of waiting are normal, and a local `timeout` means your
+waiter gave up rather than the person.
 
 Memory request kinds:
 
@@ -128,10 +156,20 @@ await fillMemoryValue({
     return String(entry.value ?? entry.text ?? '');
   },
   write: async (value) => {
-    request.headers.authorization = `Bearer ${value}`;
+    const expected = `Bearer ${value}`;
+    request.headers.authorization = expected;
+    return request.headers.authorization === expected
+      ? { status: 'filled', verification: { verified: true, strategy: 'exact' } }
+      : { status: 'blocked', reason: 'postcondition_mismatch' };
   },
 });
 ```
+
+The writer must re-read the destination and return only value-free verification.
+Void or unverified results fail closed and never enter the completion ledger.
+For resumable browser fills, also return the current per-write `scope` with
+`pageRef`, `documentRef`, and a screened origin+pathname `pageUrl`. A later SPA
+route must not overwrite the scope of an earlier completion.
 
 Use this for one-value writes such as API auth headers, provider SDK inputs,
 or a single browser field.
@@ -154,7 +192,7 @@ const plan: FillPlan = {
       targetRef: 'authorization-header',
       fieldRef: 'api.bearer_token',
       fieldLabel: 'Bearer token',
-      fieldName: 'Authorization header',
+      fieldName: 'authorization',
       state: 'ready',
       valueHandle: 'handle_api_token',
     },
@@ -176,8 +214,11 @@ const applyResult = await applyFill({
   },
   targetWriter: {
     async write({ value }) {
-      request.headers.authorization = `Bearer ${value}`;
-      return { status: 'filled' };
+      const expected = `Bearer ${value}`;
+      request.headers.authorization = expected;
+      return request.headers.authorization === expected
+        ? { status: 'filled', verification: { verified: true, strategy: 'exact' } }
+        : { status: 'blocked', reason: 'postcondition_mismatch' };
     },
   },
 });
@@ -193,7 +234,10 @@ purchase, booking, signing, or payment actions.
 Use `planFill(...)` when you want the SDK to build the `FillPlan` from a
 value-free Memory catalog, your target descriptors, and Memory target matches.
 This example uses a browser target adapter, but the SDK API is the same for any
-trusted target writer.
+trusted target writer. Each entry in `targets` is a `FillTargetDescriptor` and
+is free text by default; set `writeCapability` to `{ kind: 'choice', options }`
+for a select target, `{ kind: 'toggle' }` for a checkbox or switch, or
+`{ kind: 'unavailable', reason }` for one that cannot be written.
 
 ```ts
 import { fetchMemoryCatalog, materializeMemoryValues } from '@nuanu-ai/magicpay-sdk/core';
@@ -201,7 +245,7 @@ import { applyFill, planFill } from '@nuanu-ai/magicpay-sdk/fill-plan-apply';
 
 const targetSet = {
   fingerprint: 'login-form-v1',
-  targets: [{ targetRef: 'email', label: 'Email', writable: true }],
+  targets: [{ targetRef: 'email', label: 'Email', fieldName: 'email' }],
   context: { url: 'https://airline.example.com/login' },
 };
 
@@ -216,7 +260,7 @@ const plan = await planFill({
       targetRef: 'email',
       fieldRef: 'profile.email',
       fieldLabel: 'Email',
-      fieldName: 'Email target',
+      fieldName: 'email',
       confidence: 'high',
     },
   ],
@@ -240,7 +284,10 @@ const applyResult = await applyFill({
   targetWriter: {
     async write(input) {
       await yourBrowser.fill(input.targetRef, input.value);
-      return { status: 'filled' };
+      const observed = await yourBrowser.readValue(input.targetRef);
+      return observed === input.value
+        ? { status: 'filled', verification: { verified: true, strategy: 'exact' } }
+        : { status: 'blocked', reason: 'postcondition_mismatch' };
     },
   },
 });

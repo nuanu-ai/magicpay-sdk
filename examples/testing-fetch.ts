@@ -1,7 +1,4 @@
-import {
-  createMagicPayClient,
-  type MagicPayGatewayConfig,
-} from '@nuanu-ai/magicpay-sdk';
+import { createMagicPayClient, type MagicPayGatewayConfig } from '@nuanu-ai/magicpay-sdk';
 
 export function createMagicPayTestClient(params: {
   gateway?: MagicPayGatewayConfig;
@@ -10,7 +7,7 @@ export function createMagicPayTestClient(params: {
   return createMagicPayClient({
     gateway: params.gateway ?? {
       apiKey: 'test_api_key',
-      apiUrl: 'https://agents-api.mercuryo.io/functions/v1/api',
+      apiUrl: 'https://durcottggsiesxxqzvbb.supabase.co/functions/v1/api',
     },
     fetchImpl: async (input: RequestInfo | URL, init: RequestInit = {}) => {
       const method = (init.method ?? 'GET').toUpperCase();

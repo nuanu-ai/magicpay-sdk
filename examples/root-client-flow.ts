@@ -86,13 +86,21 @@ export async function runRootClientFlow(params: RootClientFlowParams) {
 
   const memoryResult = await client.memory.waitForResult(params.sessionId, memoryHandle);
   if (!memoryResult.ok) {
+    // Short form of the reason switch in `memory-request.ts`: a local `timeout`
+    // is not terminal, so the caller keeps the request id and resumes waiting
+    // instead of treating the request as failed.
+    if (memoryResult.reason === 'timeout') {
+      return { status: 'pending', pendingRequestId: memoryResult.requestId } as const;
+    }
+
     throw new Error(`Memory request failed: ${memoryResult.reason}`);
   }
 
   if (!params.action) {
     return {
+      status: 'completed',
       memoryResult,
-    };
+    } as const;
   }
 
   const actionBridge = toBridgeInput(params.action.bridge);
@@ -112,11 +120,17 @@ export async function runRootClientFlow(params: RootClientFlowParams) {
 
   const actionResult = await client.actions.waitForResult(params.sessionId, actionHandle);
   if (!actionResult.ok) {
+    // Same rule for action requests: a local `timeout` leaves the request open.
+    if (actionResult.reason === 'timeout') {
+      return { status: 'pending', pendingRequestId: actionResult.requestId } as const;
+    }
+
     throw new Error(`Action request failed: ${actionResult.reason}`);
   }
 
   return {
+    status: 'completed',
     memoryResult,
     actionResult,
-  };
+  } as const;
 }

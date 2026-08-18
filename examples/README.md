@@ -2,6 +2,7 @@
 
 These examples cover the current public SDK APIs:
 
+- the first authenticated call;
 - Memory;
 - Memory requests;
 - one-handle Memory fill;
@@ -11,6 +12,7 @@ These examples cover the current public SDK APIs:
 
 ## Files
 
+- [`hello-world.ts`](./hello-world.ts)
 - [`root-client-flow.ts`](./root-client-flow.ts)
 - [`memory-request.ts`](./memory-request.ts)
 - [`memory-fill-value.ts`](./memory-fill-value.ts)

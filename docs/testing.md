@@ -7,7 +7,7 @@ import { createMagicPayClient } from '@nuanu-ai/magicpay-sdk';
 
 const responses = new Map<string, Response>();
 responses.set(
-  'GET https://agents-api.mercuryo.io/functions/v1/api/memory-items?all_sites=true',
+  'GET https://durcottggsiesxxqzvbb.supabase.co/functions/v1/api/memory-items?all_sites=true',
   new Response(JSON.stringify({ items: [] }), {
     status: 200,
     headers: { 'content-type': 'application/json' },
@@ -17,7 +17,7 @@ responses.set(
 const client = createMagicPayClient({
   gateway: {
     apiKey: 'test_api_key',
-    apiUrl: 'https://agents-api.mercuryo.io/functions/v1/api',
+    apiUrl: 'https://durcottggsiesxxqzvbb.supabase.co/functions/v1/api',
   },
   fetchImpl: async (input, init = {}) => {
     const key = `${(init.method ?? 'GET').toUpperCase()} ${String(input)}`;

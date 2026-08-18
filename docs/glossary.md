@@ -27,7 +27,9 @@ A user-facing Memory decision or value request created through
 
 ## Memory handle
 
-An opaque reference to a value that may be materialized for the current run.
+A caller-opaque reference to a value that may be materialized for the current
+run. Public item list/read projections do not contain this capability; only an
+authorized catalog entry carries a session-scoped value handle.
 
 ## Memory value type
 
@@ -55,12 +57,14 @@ session.
 The state represented by `payment_card.authorization_required` in fill-plan
 blockers and by `payment_authorization_required` in backend availability
 reasons. It means a provider-backed card exists, but card field handles remain
-hidden until the active session has an approved `authorize_payment` request.
+hidden until the active session has a fully finalized `authorize_payment`
+request. An operation id alone is not treated as usable card authority.
 
 ## Memory field
 
-Reusable saved Memory data. Public list/read responses expose field metadata
-and value handles, not reusable raw values.
+Reusable saved Memory data. Public item list/read responses expose stable field
+identity and safe metadata, but neither reusable raw values nor materialization
+capabilities. Authorized catalog entries carry scoped value handles separately.
 
 ## action request
 
@@ -73,7 +77,8 @@ A user choice over runtime-provided options.
 ## request handle
 
 The `requestId`, `sessionId`, status, and resolution path returned when a
-request is created.
+request is created. Provider-card authorization handles can also include the
+optional safe `reservationExpiresAt`; it is distinct from the request deadline.
 
 ## artifact
 

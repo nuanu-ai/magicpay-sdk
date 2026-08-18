@@ -62,7 +62,7 @@ The word "handle" means two different things. Keep them apart:
 
 | Term                                         | What it is                                                                            | Where it is used                   |
 | -------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------- |
-| **request handle** (`MagicPayRequestHandle`) | `{ requestId, sessionId, status, resolutionPath }` returned when you create a request | pass to `waitForResult(...)`       |
+| **request handle** (`MagicPayRequestHandle`) | `{ requestId, sessionId, status, resolutionPath, reservationExpiresAt? }` returned when you create a request | pass to `waitForResult(...)`       |
 | **Memory value handle** (a `string`)         | an opaque pointer to a stored value, e.g. `handle_api_token`                          | pass to `materializeValue(handle)` |
 
 ## Handles vs values — values stay out of the LLM
@@ -77,6 +77,11 @@ Memory comes to your runtime in two stages:
 
 Never put a materialized value into a log, a model prompt, a plan object, an
 event, or an error message. See [Security Model](./security-model.md).
+
+For provider cards, `fieldRef` and the Memory value handle have deliberately
+different lifetimes. The field ref is stable logical identity; the handle is
+caller-opaque and validated against the active session and authorization (and,
+for pool cards, the reservation). Knowing a field ref does not grant access.
 
 ## Memory: items vs requests
 

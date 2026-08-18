@@ -2,13 +2,18 @@
 
 ## `createMagicPayClient(options)`
 
+`getAuthenticatedAgent(gateway)` is the step-zero call before any client work:
+it returns the authenticated agent profile or throws the request errors
+documented in the [error reference](error-reference.md), which makes it the
+quickest way to verify an API key.
+
 ```ts
 import { createMagicPayClient } from '@nuanu-ai/magicpay-sdk';
 
 const client = createMagicPayClient({
   gateway: {
     apiKey: '...',
-    apiUrl: 'https://agents-api.mercuryo.io/functions/v1/api',
+    apiUrl: 'https://durcottggsiesxxqzvbb.supabase.co/functions/v1/api',
   },
   fetchImpl,
 });
@@ -35,7 +40,9 @@ candidate selection, reauth, and runtime value references.
 Use `client.memoryItems` when trusted runtime code needs to list, get, create,
 update, or delete saved Memory item records directly. Responses are value-free:
 field records include `fieldRef`, human `label`, useful hints, sparse
-`secret: true` markers, and item `readOnly` state, not reusable raw values.
+`secret: true` markers, and item `readOnly` state, not reusable raw values or
+materialization capabilities. Scoped `valueHandle` capabilities appear only
+in authorized Memory catalog entries.
 
 A Memory item is a user-owned reusable data record. Its `label` is the
 human-readable name for the record, while `fields` hold reusable facts inside
@@ -141,6 +148,11 @@ the session catalog after payment authorization.
 
 ## `client.memory`
 
+A Memory request has two sides, and they are normally different processes: your
+runtime creates the request and waits, the user's MagicPay UI answers it.
+
+### Runtime side
+
 ```ts
 const handle = await client.memory.createRequest(sessionId, {
   clientRequestId: 'request-1',
@@ -149,14 +161,25 @@ const handle = await client.memory.createRequest(sessionId, {
   context: { url: 'https://example.com/login' },
 });
 
+const result = await client.memory.waitForResult(sessionId, handle);
+```
+
+### Answering side (MagicPay UI, or your test harness)
+
+```ts
 await client.memory.submitDecision(sessionId, handle.requestId, {
   decision: 'provided',
   save: 'new',
   values: [{ fieldRef: 'profile.email', value: 'ada@example.com' }],
 });
 
-const result = await client.memory.waitForResult(sessionId, handle);
+const claimed = await client.memory.claim(sessionId, handle.requestId);
 ```
+
+In production the answering side is the user's MagicPay UI; calling
+`submitDecision(...)` or `claim(...)` from the runtime is a test-only pattern
+(see [Testing](./testing.md)). `waitForResult(...)` claims the artifact itself,
+so a runtime that waits never calls `claim(...)`.
 
 ### `MagicPayMemoryRequestInput`
 
@@ -173,19 +196,53 @@ interface MagicPayMemoryRequestInput {
     | 'memory.stale_target';
   ttlMs?: number;
   itemRef?: string;
+  contentRevision?: string;
   handleRef?: string;
   fieldKey?: string;
+  fieldName?: string;
   fieldRef?: string;
-  fieldLabel?: string;
   targetRef?: string;
   fields?: MagicPayMemoryRequestedField[];
   candidates?: readonly Record<string, unknown>[];
   availability?: Record<string, unknown>;
-  context?: Record<string, unknown>;
+  saveHint?: MagicPayMemoryRequestSaveHint;
+  context?: MagicPayRequestContext & Record<string, unknown>;
   bridge?: MagicPayBridgeContext;
   terminalOptions?: readonly string[];
 }
 ```
+
+`fieldName` is the target-side field name and is sent as `field_name`. Use
+`fieldRef` for an existing Memory field, `fieldKey` for the requested key, and
+`targetRef` for the runtime target the request came from.
+
+`MagicPayMemoryRequestSaveHint` is not re-exported from the root entrypoint;
+import it from `@nuanu-ai/magicpay-sdk/client` if you need to name the type.
+
+### `MagicPayRequestContext` and `MagicPayBridgeContext`
+
+Both types are exported from the root entrypoint and are shared by Memory,
+action, and choice request inputs.
+
+```ts
+interface MagicPayRequestContext {
+  url?: string;
+  pageTitle?: string;
+  formPurpose?: string;
+  merchantName?: string;
+}
+
+interface MagicPayBridgeContext {
+  pageRef?: string;
+  fillRef?: string;
+  scopeRef?: string;
+  surfaceRef?: string;
+}
+```
+
+Only `url`, `pageTitle`, `merchantName`, and `formPurpose` are transmitted from
+`context`. The `& Record<string, unknown>` intersection makes the type accept
+extra keys, but both the SDK and the API silently drop them.
 
 ### `MagicPayMemoryRequestDecisionInput`
 
@@ -196,10 +253,55 @@ interface MagicPayMemoryRequestDecisionInput {
   saveAs?: Record<string, unknown>;
   targetItemId?: string;
   selectedItemRef?: string;
-  values?: readonly Record<string, unknown>[];
+  values?: readonly Record<string, unknown>[] | Record<string, unknown>;
   candidates?: readonly Record<string, unknown>[];
 }
 ```
+
+camelCase is the canonical spelling for every request input. The snake_case
+wire spelling of the same field — `selected_item_ref` for `selectedItemRef`,
+`save_as` for `saveAs`, `display_name` for `displayName` — stays accepted for
+compatibility, and `saveAs` also accepts `label` for the display name. When a
+field arrives in more than one spelling the canonical camelCase one wins, and
+the SDK always transmits the snake_case form the API expects.
+
+## Waiting for results
+
+Every waiter — `client.memory.waitForResult(...)`,
+`client.actions.waitForResult(...)`, `client.choice.waitForResult(...)`, and
+`client.requests.waitForResult(...)` — polls the API until the request reaches a
+terminal state, and takes an optional `MagicPayWaitForResultOptions`:
+
+```ts
+const result = await client.memory.waitForResult(sessionId, handle, {
+  timeoutMs: 15 * 60_000,
+  intervalMs: 2_000,
+  signal: controller.signal,
+  onStatusChange: (status) => console.log(`request is now ${status}`),
+});
+```
+
+| Field              | Default               | Meaning                                                                                                                                          |
+| ------------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `timeoutMs`        | `300000` (5 minutes)  | Budget for the whole wait; when it elapses the waiter returns `{ ok: false, reason: 'timeout' }`.                                                 |
+| `attemptTimeoutMs` | `30000` (30 seconds)  | Budget for one HTTP call. A call that stops answering is dropped and tried again, and never outlives the remaining wait budget.                   |
+| `intervalMs`       | `3000`                | Delay between polls, and between retries of a failed API call.                                                                                    |
+| `signal`           | none                  | Aborting rejects the promise instead of returning a result; detect it with `isMagicPayAbortError(error)`.                                         |
+| `onStatusChange`   | none                  | Called on each observed status change. `approved` and `executing` mean the user already approved and MagicPay is finalizing — still non-terminal. |
+
+The `timeoutMs` default is exported from the root entrypoint as
+`MAGICPAY_DEFAULT_REQUEST_WAIT_TIMEOUT_MS`, and the `intervalMs` default as
+`DEFAULT_REQUEST_POLL_INTERVAL_MS`. Because a human answers, waiting can
+legitimately take minutes: a `timeout` result is local and not terminal, so
+persist `result.requestId` and resume waiting from any process. See
+[Error Reference](./error-reference.md).
+
+The two budgets are independent clocks. A call that never reaches MagicPay — a
+DNS failure, a reset connection, a request that stops answering — is retried on
+the same interval until the wait budget runs out, so one brief network problem
+does not end a wait that a person is still answering. HTTP error responses are
+not retried that way: only `408`, `429`, and `5xx` are treated as temporary.
+Aborting your `signal` stops the wait immediately in every case.
 
 ## `client.actions`
 
@@ -215,7 +317,8 @@ const result = await client.actions.waitForResult(sessionId, handle);
 ```
 
 `client.actions.confirm(...)` is a convenience wrapper for the common confirm
-capability.
+capability: it creates the request with `capability: 'confirm'` and waits for
+the result, so it returns a `MagicPayRequestResult` instead of a handle.
 
 ## `client.choice`
 
@@ -236,6 +339,10 @@ const result = await client.requests.waitForResult(sessionId, requestId);
 ```
 
 Use this namespace for generic non-Memory request waiting and OTP confirmation.
+For a provider-card authorization, `confirmOtp(...)` returns a request handle
+with optional `reservationExpiresAt`, and the successful `waitForResult(...)`
+result preserves that same safe expiry. The reservation expiry is separate
+from the request deadline.
 
 ## `client.sessions`
 
@@ -265,6 +372,14 @@ const values = await materializeMemoryValues(gateway, sessionId, ['handle_email'
 `materializeMemoryValues(...)` returns runtime-only values for explicit
 handles.
 
+Provider-card logical `fieldRef` values are stable across item and catalog
+reads. Public item projections expose no `valueHandle`; authorized catalog
+entries carry separate session/reservation-scoped `valueHandle.ref`
+capabilities. A stable field ref is not materializable by itself. Ready pool
+handles expose safe `reservationExpiresAt` metadata, and
+`catalog.availability.payment_card_pool` carries the wire
+`reservation_expires_at` value.
+
 Provider-backed payment cards are session-scoped. Before payment
 authorization, `fetchMemoryCatalog(...)` does not return card field handles;
 instead it reports a machine-readable availability entry:
@@ -276,11 +391,19 @@ catalog.unavailable.find((entry) => {
 });
 ```
 
-That state means the card exists, but `authorize_payment` must be approved in
-the active session before the SDK can materialize provider-backed card handles.
+That state means the card exists, but `authorize_payment` must be approved and
+fully finalized in the active session before the SDK can materialize
+provider-backed card handles.
 Direct materialization or data requests for card fields before that approval
 fail with `payment_card_authorization_required` /
 `payment_authorization_required`.
+
+After approval, an unusable pool reservation is reported as
+`provider_needs_reauth` with an exact reason (`expired`, `inactive`, or
+`not_found`). Materialization scope failures use `wrong_session` or
+`wrong_reservation`. These are structured `reason` values; do not parse error
+messages. A new authorization is explicit—MagicPay does not silently renew or
+reuse an expired reservation.
 
 ## Memory Fill
 
@@ -288,6 +411,7 @@ fail with `payment_card_authorization_required` /
 import {
   applyFill,
   applyPlannedField,
+  collectApplyMaterializationHandles,
   collectFillPlanApplyBlockers,
   fillMemoryValue,
   parseFillPlan,
@@ -305,7 +429,11 @@ await fillMemoryValue({
   fieldLabel: 'Authorization header',
   materializeValue,
   write: async (value) => {
-    request.headers.authorization = `Bearer ${value}`;
+    const expected = `Bearer ${value}`;
+    request.headers.authorization = expected;
+    return request.headers.authorization === expected
+      ? { status: 'filled', verification: { verified: true, strategy: 'exact' } }
+      : { status: 'blocked', reason: 'postcondition_mismatch' };
   },
 });
 ```
@@ -317,8 +445,25 @@ handle and needs to write one current-run value. The helper:
 - installs an exact-value redaction profile when `installRedactionProfile` is
   supplied;
 - emits value-free events when `eventSink` is supplied;
-- calls your `write(value)` callback;
+- calls your `write(value)` callback, which must re-read the destination and
+  return value-free verification;
 - returns status metadata without returning the raw value.
+
+Void or unverified writer results fail closed as
+`postcondition_unverifiable` and are not recorded as complete.
+For resumable browser fills, a verified writer should also return per-write
+`scope` (`pageRef`, `documentRef`, and screened origin+pathname `pageUrl`). The
+scope is captured after that specific write; the final page state is never
+retroactively assigned to earlier completions.
+
+### `collectApplyMaterializationHandles(input)`
+
+Use this value-free preflight when a runtime batches backend materialization
+before calling `applyFill(...)`. It accepts the plan, current target state,
+decision, and any delegated-target capability from the corresponding apply
+request. The returned, deduplicated handle list follows the same deterministic
+owner, stale-target, typed-group, target-shape, and field-order gates as the
+initial apply pass. It does not materialize values.
 
 ### `applyFill(input)`
 
@@ -337,6 +482,16 @@ can be authored by your runtime, parsed from JSON, or returned by
 materializing and writes only through the target writer supplied by your
 runtime.
 
+Writer inputs default to `valueAdaptation: 'exact'`. A runtime must write that
+value as supplied: it must not normalize, remap, or send it to an assistive
+model. `valueAdaptation: 'assistive'` is an explicit opt-in reserved for a
+runtime that has independently established an open-value policy; typed and
+provider-managed projection remains exact.
+
+An allow/confirmed `memory.ask_before_use` decision may carry the value-free
+`askBeforeUseScope` copied from its blocker/request. The SDK releases only that
+exact item+subject or field group. Unscoped allow decisions fail closed.
+
 ### `planFill(input)`
 
 ```ts
@@ -354,7 +509,7 @@ value-free catalog, target descriptors, and Memory target matches.
 ```ts
 const validation = validateFillPlan(maybePlan);
 const plan = parseFillPlan(maybePlan);
-const blockers = collectFillPlanApplyBlockers(plan);
+const blockers = collectFillPlanApplyBlockers({ plan });
 ```
 
 Use `validateFillPlan(...)` or `parseFillPlan(...)` when a plan comes from
@@ -388,7 +543,7 @@ The plan is value-free and contains handles, not raw values.
 `planFill(...)` copies catalog-only provider-card availability into a
 non-blocking blocker:
 
-```ts
+```ts no-verify
 {
   kind: 'payment_card.authorization_required',
   category: 'payment_card',
@@ -407,9 +562,40 @@ plan again for the same active session.
 All waiters return:
 
 ```ts
+type MagicPayResolutionPath = 'auto' | 'confirm' | 'provide';
+
+type MagicPayRequestFailureReason = 'denied' | 'expired' | 'failed' | 'canceled' | 'timeout';
+
 type MagicPayRequestResult =
-  | { ok: true; requestId: string; resolutionPath: string; artifact: MagicPayRequestArtifact }
-  | { ok: false; requestId: string; reason: string; message?: string };
+  | {
+      ok: true;
+      requestId: string;
+      resolutionPath: MagicPayResolutionPath;
+      itemRef?: string;
+      reservationExpiresAt?: string;
+      artifact: MagicPayRequestArtifact;
+    }
+  | {
+      ok: false;
+      requestId: string;
+      reason: MagicPayRequestFailureReason;
+      message?: string;
+      reasonCode?: string;
+      lastObservedStatus?: string;
+    };
 ```
 
-Branch on `ok` and then on `artifact.kind`.
+Branch on `ok` and then on `artifact.kind`, which is one of `values`,
+`signature`, `reference`, `confirmation`, or `choice`. `itemRef` is present when
+the request resolved against a specific Memory item.
+Successful provider-card request results preserve the optional safe
+`reservationExpiresAt` exposed by the request handle.
+
+On failure, `lastObservedStatus` carries the last non-terminal status seen while
+polling. `approved` and `executing` there mean the user already approved and
+MagicPay was still finalizing when the local waiter gave up. `reasonCode` is
+present with `reason: 'canceled'` and carries the machine-readable stop reason
+MagicPay reported, such as `user_canceled`; branch on it instead of `message`.
+
+See [Error Reference](./error-reference.md) for what each failure `reason` means
+and for the error classes the SDK throws instead of returning a result.
