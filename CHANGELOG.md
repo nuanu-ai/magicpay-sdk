@@ -140,6 +140,13 @@ and the package adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Timed-out waits name an outage. Poll and wait results carry
+  `lastTransportErrorCode` when the final poll could not reach MagicPay (and
+  it clears as soon as a poll succeeds), so "the API was unreachable" is
+  distinguishable from "the person never answered" — and the timeout message
+  says to resume the same request instead of reading as a failed approval.
+- `DEFAULT_REQUEST_ATTEMPT_TIMEOUT_MS` is exported from `./core`, matching
+  the documented per-call ceiling the wait options describe.
 - `MagicPaySessionStoppedError`, `getMagicPayErrorDiagnostics`, and
   `isMagicPayAbortError` are exported from the root entrypoint, so error
   handling no longer requires subpath imports.
