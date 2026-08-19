@@ -45,7 +45,8 @@ and the package adheres to [Semantic Versioning](https://semver.org/).
 - Hosted-link responses validate the full link and routing contract, so a
   top-up or review link with no id, expiry, or surfaces fails instead of
   reporting a usable link.
-- The payment-result reader validates the complete response contract. A 200
+- The payment-result reader validates the complete response contract,
+  including the required-but-nullable `network` field of crypto transfers. A 200
   body carrying only `{"status": "succeeded"}` — no session binding, no
   settlement evidence — previously parsed as a result and could surface as
   "the payment is confirmed" downstream; it now fails as `malformed_response`,
