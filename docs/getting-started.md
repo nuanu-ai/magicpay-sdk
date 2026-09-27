@@ -328,8 +328,8 @@ commitment should stay separate.
 const choice = await client.choice.request(session.id, {
   prompt: 'Choose a flight',
   options: [
-    { id: 'flight-1', title: '08:00 direct flight', price: { amount: 320, currency: 'USD' } },
-    { id: 'flight-2', title: '12:00 direct flight', price: { amount: 350, currency: 'USD' } },
+    { id: 'flight-1', title: '08:00 direct flight', price: 'USD 320 per traveler' },
+    { id: 'flight-2', title: '12:00 direct flight', price: 'USD 350 per traveler' },
   ],
 });
 
@@ -338,3 +338,45 @@ const choiceResult = await client.choice.waitForResult(session.id, choice);
 
 Choice requests are for runtime options. They are not a replacement for Memory
 requests or action confirmations.
+
+Use a choice only when meaningful alternatives remain. Relay the same stored
+options in chat or a native picker, together with the returned hosted link or
+widget. Record the exact option ID on the existing request; selection does not
+authorize booking or payment.
+
+## 10. Start and observe a payment run
+
+The `paymentRuns` client is a thin transport for the current composed backend
+workflow. It does not run a second approval or execution state machine.
+
+```ts
+const run = await client.paymentRuns.runX402Payment({
+  clientRequestId: 'approved-resource-purchase-1',
+  maximumDebit: '1000',
+  httpRequest: {
+    requestVersion: 1,
+    url: 'https://seller.example/resource',
+    method: 'GET',
+    headers: {},
+    body: null,
+  },
+  waitTimeoutMs: 0,
+});
+
+const observed = await client.paymentRuns.waitPayment({
+  runId: run.runId,
+  progressCursor: run.nextProgressCursor,
+  timeoutMs: 4000,
+});
+```
+
+Start only for an authorized purchase and the exact quoted debit asset/amount.
+For `httpRequest`, all five fields are required. `body: null` means no body;
+`{ encoding: 'base64', content: '' }` means a present empty body. The SDK does
+not inject application headers into a new envelope. Preserve the same
+`clientRequestId` and byte-identical request on retry: MagicPay resumes the
+durable binding without automatically probing the merchant again.
+Use `runCryptoTransfer` or `runBrowserPayment` for the corresponding current
+workflow. Browser result recording requires explicit `submissionState` and
+the same run and execution-attempt IDs. A timeout, approval, or merchant
+response is not settlement and never authorizes a replacement run.

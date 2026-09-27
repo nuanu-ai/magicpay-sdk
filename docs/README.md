@@ -16,7 +16,9 @@ The current runtime flow is:
 6. use `planFill(...)` with a value-free catalog when you want the SDK to build
    the plan for your targets;
 7. use `client.actions` for user-confirmed actions;
-8. use `client.choice` for option selection.
+8. use `client.choice` for option selection;
+9. use `client.paymentRuns` for a composed x402, transfer, or browser-payment
+   workflow, including an exact generic x402 HTTP request.
 
 The SDK fill helpers are target agnostic. Browser automation is one adapter
 that can supply targets and a writer; API headers, provider calls, and other

@@ -113,23 +113,18 @@ state (`filled`, `partial`, `waiting_for_user`, `needs_replan`, `blocked`,
 `no_progress`) and **never submits, pays, books, or signs.** Final commitment is
 always a separate `client.actions` request the user confirms.
 
-## MagicSearch — optional, before the browser
-
-When the agent has a purchase intent but no URL yet,
-`resolveMagicSearchForSession({ gateway, sessionId, query })`
-(`@nuanu-ai/magicpay-sdk/magicsearch`) picks the best provider/checkout URL
-and can raise a **choice request** when confidence is low, so the user disambiguates
-instead of the agent guessing. See [Integration Modes](./integration-modes.md#magicsearch).
-
 ## End-to-end: an agent books a flight
 
 How the pieces compose in one workflow. Each step links to runnable code in
 [Getting Started](./getting-started.md).
 
 1. **Open a session.** `client.sessions.create({ type: 'payment', ... })`.
-   `type` is `'payment' | 'subscription' | 'cancellation'`.
-2. **Find the provider (optional).** `resolveMagicSearchForSession(...)` returns
-   a checkout URL; if it raises a choice request, the user picks the airline.
+   `type` is `'payment' | 'subscription' | 'cancellation' | 'general'`.
+2. **Find provider guidance (optional).** Call MagicSearch through the remote
+   MCP `search_provider_methods` tool. It returns up to three advisory method
+   entries with URLs, official docs, and operating guidance. The agent chooses
+   a relevant entry, verifies the current provider docs, and executes it with
+   capabilities it already has; MagicSearch creates no choice or run state.
 3. **Reach the login form.** Your browser observes the fields; `planFill(...)`
    builds a value-free plan and `applyFill(...)` writes the saved credential
    through your guarded `targetWriter`. The agent never sees the password.

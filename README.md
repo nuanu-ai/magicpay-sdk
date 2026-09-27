@@ -68,6 +68,8 @@ sequenceDiagram
   authorization before card handles can be revealed.
 - **Ask the user to confirm an action or choose an option** and wait for the
   result without writing polling code.
+- **Run a composed x402 payment for an exact generic HTTP request** while
+  preserving its URL, method, permitted headers, body presence, and body bytes.
 
 The SDK talks to the MagicPay API. Browser observation, UI, final business
 steps, and any provider calls remain in your runtime.
@@ -123,7 +125,7 @@ This package is still `0.x`. Minor versions may include breaking changes until
 | `@nuanu-ai/magicpay-sdk`                 | Root client for sessions, Memory, Memory requests, actions, choices, and request waiting.           |
 | `@nuanu-ai/magicpay-sdk/core`            | Lower-level helpers such as Memory catalog fetch and runtime materialization.                       |
 | `@nuanu-ai/magicpay-sdk/fill-plan-apply` | Target-agnostic Memory fill helpers: `fillMemoryValue(...)`, `applyFill(...)`, and `planFill(...)`. |
-| `@nuanu-ai/magicpay-sdk/magicsearch`     | MagicSearch client helpers.                                                                         |
+| `@nuanu-ai/magicpay-sdk/payment-runs`    | Composed payment runs plus the versioned generic x402 HTTP request type, validator, and policy.     |
 
 ## Quick Start
 
@@ -206,10 +208,11 @@ if (!result.ok) {
       // 'expired' | 'failed' | 'canceled' are terminal.
       throw new Error(`Memory request ${result.reason}`);
   }
-} else if (result.artifact.kind === 'reference') {
+} else if ('artifact' in result && result.artifact.kind === 'reference') {
   await yourRuntime.continueWithMemoryReference(result.artifact.reference);
 } else {
-  throw new Error(`Unexpected artifact kind: ${result.artifact.kind}`);
+  // A value-free save result has saveOutcome, not a materialization artifact.
+  throw new Error('This request did not return a Memory reference.');
 }
 ```
 
@@ -442,3 +445,17 @@ deadline cannot kill an approval already in progress.
 
 See [Getting Started](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/getting-started.md), [API Reference](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/api-reference.md),
 and [Examples](https://github.com/nuanu-ai/magicpay-sdk/blob/main/docs/examples.md) for the full integration guide.
+
+### Preview an x402 price without paying
+
+`client.paymentRuns.quoteX402Payment({ clientRequestId, resourceUrl, maximumDebit })`
+returns the merchant amount, fees, unified USD debit (scale 6), expiry and
+`quoteRef`. It makes unpaid GET discovery only; no payment run, approval,
+reservation or payment submission is created. Requests with a body or another
+method currently return a preview limitation. `maximumDebit` is an optional
+preview budget; it is not purchase authorization.
+
+After explicit user acceptance, call `runX402Payment` with the same exact request,
+`clientRequestId`, returned `maximumDebit`, and `acceptedQuoteRef: quote.quoteRef`.
+Changed or expired terms require a new preview. Once a run exists, reconcile it
+by its original identity; do not quote and repurchase to recover a timeout.

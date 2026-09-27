@@ -21,6 +21,70 @@ const client = createMagicPayClient({
 
 `fetchImpl` is optional and is useful in tests.
 
+## `client.paymentRuns.runX402Payment(input)`
+
+Use the payment-runs subpath for the generic paid HTTP request type and its
+portable validator:
+
+```ts
+import {
+  normalizeManagedX402HttpRequestV1,
+  type ManagedX402HttpRequestV1,
+} from '@nuanu-ai/magicpay-sdk/payment-runs';
+
+const httpRequest: ManagedX402HttpRequestV1 = {
+  requestVersion: 1,
+  url: 'https://seller.example/v1/items/42',
+  method: 'PATCH',
+  headers: { 'content-type': 'application/octet-stream' },
+  body: { encoding: 'base64', content: 'AAEC/w==' },
+};
+
+const run = await client.paymentRuns.runX402Payment({
+  clientRequestId: 'seller-patch-42-v1',
+  maximumDebit: '7000',
+  httpRequest: normalizeManagedX402HttpRequestV1(httpRequest),
+});
+```
+
+`requestVersion`, `url`, `method`, `headers`, and `body` are mandatory. The URL
+must be HTTPS with no credentials or fragment. The method must be an uppercase
+HTTP token of 1-32 characters; `CONNECT` and `TRACE` are forbidden, and
+`GET`/`HEAD` require `body: null`. For other methods, `body: null` means absent,
+while `{ encoding: 'base64', content: '' }` represents a present zero-byte
+body. Base64 must be canonical and decode to at most 8192 bytes.
+
+Header names use HTTP token syntax and are normalized to lowercase. Case-
+variant duplicates are rejected. Values may contain only visible ASCII and
+must have no leading or trailing whitespace. The envelope accepts at most 32
+headers; their canonical JSON may occupy at most 8192 bytes, and the complete
+canonical envelope at most 32768 bytes. MagicPay adds no application header to
+a new envelope, so the caller must supply each permitted seller header.
+
+The forbidden names are `host`, `content-length`, `transfer-encoding`,
+`connection`, `keep-alive`, `te`, `trailer`, `upgrade`, `expect`,
+`proxy-connection`, `authorization`, `proxy-authorization`, `cookie`,
+`set-cookie`, `x-api-key`, `api-key`, `x-auth-token`, `forwarded`,
+`payment-required`, `payment-signature`, `payment-response`, `x-payment`,
+`x-payment-response`, and `x-payment-required`. The forbidden prefixes are
+`proxy-`, `sec-`, `x-forwarded-`, `x-magicpay-`, and `x-agentpay-`. The SDK also
+exports `MANAGED_X402_HTTP_LIMITS_V1`, `MANAGED_X402_FORBIDDEN_HEADERS_V1`, and
+`MANAGED_X402_FORBIDDEN_HEADER_PREFIXES_V1` from the payment-runs subpath.
+
+`httpRequest` is mutually exclusive with the compatibility fields
+`resourceUrl`, `resourceMethod`, and `resourceBody`. Existing legacy GET and
+non-empty JSON POST calls retain their prior serialization. For a retry, reuse
+the same `clientRequestId` and unchanged request. MagicPay resumes the durable
+request binding and does not automatically send the merchant request again.
+
+If a successful start response cannot be validated, the SDK throws
+`MagicPayPaymentRunResponseError` from `@nuanu-ai/magicpay-sdk/payment-runs`.
+It retains the original `clientRequestId` and safe recovery guidance. When
+`action` is `wait_same_run`, use `waitPayment` with its independently validated
+`runId`. Otherwise, repeat the original call with the same key and unchanged
+payment facts. The SDK performs no automatic retry and retains no rejected
+response body in this error.
+
 ## Memory APIs
 
 ```ts

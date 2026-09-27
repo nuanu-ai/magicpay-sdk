@@ -57,11 +57,6 @@ as final-submit permission.
 authorization-required card state. Authorize the payment, then fetch the
 catalog and plan again.
 
-## MagicSearch
-
-Use `@nuanu-ai/magicpay-sdk/magicsearch` for provider discovery and fallback
-URL lookup.
-
 ## What Is Not In The SDK
 
 The SDK does not own browser automation, UI rendering, provider execution,

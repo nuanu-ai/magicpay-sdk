@@ -5,7 +5,64 @@ All notable changes to `@nuanu-ai/magicpay-sdk` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the package adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.3.0] - Unreleased
+## [Unreleased]
+
+### Changed
+
+- Payment operation projections validate state guidance from the one table
+  shared with the MagicPay API: a reserved x402 purchase and an approved
+  operation still awaiting its approval transition report `reconcile` with
+  `reconcile_same_operation`. The vendored payment-wire modules now include
+  `state-guidance`.
+
+### Fixed
+
+- Malformed successful payment-run start responses preserve the original request
+  key and, when independently validated, the existing run ID in
+  `MagicPayPaymentRunResponseError`. Recovery reuses that run or the unchanged
+  request; the error contains no rejected response body and starts no retry.
+
+## [0.5.2] - Unreleased
+
+### Added
+
+- Browser payment runs support subscription intent, the subscribe action, and
+  optional agent-supplied renewal dates, expiration and cancellation hints.
+  Result reporting can refine those details; invalid optional metadata is ignored.
+
+## [0.5.0] - Unreleased
+
+### Added
+
+- Add a versioned generic x402 HTTP request envelope for exact HTTPS URLs,
+  methods, permitted headers, and absent, empty, text, form, or binary bodies.
+  Existing legacy GET and non-empty JSON POST calls remain compatible.
+
+## [0.4.0] - Unreleased
+
+### Breaking
+
+- Replace `payments.startDirectTransfer` and `payments.startX402Purchase` with
+  the current `paymentRuns` composed workflows. No aliases are retained.
+- Choices use two to eight single-select options, string display prices,
+  explicit image/logo objects and ordered scalar attributes. Generic
+  adjustment prompts and provider-specific coercions are removed.
+
+### Added
+
+- A dependency-free `/payment-runs` client for crypto, x402, browser starts,
+  exact-run waits and browser-result recording. Responses are validated against
+  requested identities; browser results require explicit submission evidence.
+- Shared payment wire contracts, packaged without private workspace imports or
+  the payment engine, preserve customer debit, runtime approval IDs and revoked
+  authority consistently across API, MCP and SDK.
+
+### Fixed
+
+- Choice artifacts require the canonical selected option. Memory save outcomes
+  remain distinguishable from value-materialization artifacts.
+
+## [0.3.0]
 
 ### Breaking
 
@@ -14,10 +71,13 @@ and the package adheres to [Semantic Versioning](https://semver.org/).
   error classes with their helpers. The other ninety-eight root re-exports
   moved unchanged to their subpath homes — `/core` (Memory items, client
   capabilities, polling primitives, value types, country options, target
-  signatures), `/payment-operations`, `/magicsearch`, `/fill-plan-apply`,
+  signatures), `/payment-operations`, `/fill-plan-apply`,
   `/subscription-approval`, `/session-client`, `/session-flow`, and
   `/memory-decisions`. A test pins the root export list, so widening it back
   is a reviewed decision, not a merge side effect.
+- `startX402Purchase` now requires an exact HTTPS `resourceUrl`. Discovery
+  remains outside payment execution; the SDK no longer accepts an indirect
+  provider-selection capability as a purchase source.
 
 ### Security
 
