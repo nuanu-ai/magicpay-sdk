@@ -7,6 +7,13 @@ and the package adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Optional gateway `readRegion` prefers a Supabase region for balance and
+  funding-method reads, with one automatic-routing fallback on transport or
+  gateway failure. Caller cancellation, domain refusals and financial mutations
+  never trigger regional replay. Defaults remain automatic.
+
 ### Changed
 
 - Payment operation projections validate state guidance from the one table
@@ -16,6 +23,9 @@ and the package adheres to [Semantic Versioning](https://semver.org/).
   `state-guidance`.
 
 ### Fixed
+
+- Account activity accepts a page number and forwards it to the API, so callers
+  can advance through agent-scoped history instead of repeating the first page.
 
 - Malformed successful payment-run start responses preserve the original request
   key and, when independently validated, the existing run ID in

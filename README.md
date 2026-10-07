@@ -40,6 +40,15 @@ console.info(`Authenticated as ${agent.name} (status: ${agent.status})`);
 const client = createMagicPayClient({ gateway });
 ```
 
+For a Supabase-backed gateway, optionally set `gateway.readRegion` (for example,
+`eu-central-1`) after measuring your caller's latency. Only balance and
+funding-method GETs use the preference. They fall back once to automatic routing
+on network failure, an 8-second preferred-region header deadline, or HTTP
+502/503/504 without an explicit `retryable: false` refusal. Request cancellation
+and deadlines stop fallback; mutations and other routes remain automatic.
+Successful response bodies are never retried for parse errors. Leave the option
+unset to retain automatic routing everywhere.
+
 ## How it works
 
 ```mermaid
