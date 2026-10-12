@@ -32,6 +32,13 @@ and the package adheres to [Semantic Versioning](https://semver.org/).
   `MagicPayPaymentRunResponseError`. Recovery reuses that run or the unchanged
   request; the error contains no rejected response body and starts no retry.
 
+## [0.5.18] - 2026-10-12
+
+### Added
+
+- Optional `itemName` and `description` suggestions on form collection groups, for
+  editable Memory metadata in hosted collection forms.
+
 ## [0.5.17] - 2026-10-12
 
 ### Added
