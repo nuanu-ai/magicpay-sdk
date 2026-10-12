@@ -32,6 +32,22 @@ and the package adheres to [Semantic Versioning](https://semver.org/).
   `MagicPayPaymentRunResponseError`. Recovery reuses that run or the unchanged
   request; the error contains no rejected response body and starts no retry.
 
+## [0.5.17] - 2026-10-12
+
+### Added
+
+- Memory form collection accepts explicit definitions for a custom Use once
+  remainder alongside known typed items.
+- Missing-field fallback feedback exposes bounded field keys, labels and group
+  references. Parsing rejects values, duplicate fields and unrelated states.
+
+## [0.5.16] - 2026-10-09
+
+### Added
+
+- Memory form resolution accepts phone targets and returns validated structured
+  phone parts with full, national, calling-code and country projections.
+
 ## [0.5.2] - Unreleased
 
 ### Added
